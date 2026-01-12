@@ -1,0 +1,78 @@
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "./theme";
+import { ToastProvider } from "./context/ToastContext";
+import MainLayout from "./components/layout/MainLayout";
+import Login from "./pages/Auth/Login";
+import Signup from "./pages/Auth/Signup";
+import Landing from "./pages/Landing";
+import UserProfile from "./pages/User/UserProfile";
+// import Notifications from "./pages/Notifications";
+
+import DepartmentGateway from "./pages/Dashboard/DepartmentGateway";
+import DepartmentDashboard from "./pages/Dashboard/DepartmentDashboard";
+import AdminRoleManager from "./pages/admin-side/AdminRoleManager";
+import Head from "./pages/admin-side/Head";
+
+// Placeholder for other role pages (to be created)
+const SuperAdminPage = () => (
+  <div style={{ color: "#fff", padding: 20 }}>
+    <h1>Super Admin Dashboard</h1>
+    <p>This page is under construction.</p>
+  </div>
+);
+
+const AdminDashboardPage = () => (
+  <div style={{ color: "#fff", padding: 20 }}>
+    <h1>Admin Dashboard</h1>
+    <p>This page is under construction.</p>
+  </div>
+);
+
+const DeveloperPage = () => (
+  <div style={{ color: "#fff", padding: 20 }}>
+    <h1>Developer Dashboard</h1>
+    <p>This page is under construction.</p>
+  </div>
+);
+
+function App() {
+  return (
+    <ToastProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/app" element={<MainLayout />}>
+              <Route index element={<Navigate to="/app/gateway" replace />} />
+              <Route path="gateway" element={<DepartmentGateway />} />
+              <Route
+                path="department/:deptId"
+                element={<DepartmentDashboard />}
+              />
+              <Route path="profile" element={<UserProfile />} />
+              {/* <Route path="notifications" element={<Notifications />} /> */}
+            </Route>
+            <Route path="/admin" element={<AdminRoleManager />} />
+            <Route path="/head" element={<Head />} />
+            <Route path="/super-admin" element={<SuperAdminPage />} />
+            <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+            <Route path="/developer" element={<DeveloperPage />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </ToastProvider>
+  );
+}
+
+export default App;
