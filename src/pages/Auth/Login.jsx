@@ -237,10 +237,10 @@ const Login = () => {
               startIcon={<GoogleIcon />}
               onClick={async () => {
                 try {
-                  const res = await axios.get(
+                  axios.get(
                     "http://localhost:8080/auth/google"
                   );
-                  console.log(res.data);
+
                 } catch (error) {
                   console.log(error);
                   showToast("Google Login Failed", "error");

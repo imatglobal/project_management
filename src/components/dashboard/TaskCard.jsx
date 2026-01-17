@@ -4,7 +4,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { Draggable } from "@hello-pangea/dnd";
 
-const TaskCard = ({ task, index }) => {
+const TaskCard = ({ task, index, isDragDisabled }) => {
   const getPriorityColor = (priority) => {
     if (!priority) return "#a0aec0";
     const p = priority.toLowerCase();
@@ -22,7 +22,11 @@ const TaskCard = ({ task, index }) => {
   };
 
   return (
-    <Draggable draggableId={String(index)} index={index}>
+    <Draggable
+      draggableId={String(index)}
+      index={index}
+      isDragDisabled={isDragDisabled}
+    >
       {(provided, snapshot) => (
         <Box
           ref={provided.innerRef}
@@ -110,7 +114,10 @@ const TaskCard = ({ task, index }) => {
               }}
             >
               <AccessTimeIcon sx={{ fontSize: 14 }} />
-              <Typography variant="caption" sx={{ textTransform: "capitalize" }}>
+              <Typography
+                variant="caption"
+                sx={{ textTransform: "capitalize" }}
+              >
                 {task.deadline || "No deadline"}
               </Typography>
             </Box>

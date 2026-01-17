@@ -20,6 +20,9 @@ import DepartmentGateway from "./pages/Dashboard/DepartmentGateway";
 import DepartmentDashboard from "./pages/Dashboard/DepartmentDashboard";
 import AdminRoleManager from "./pages/admin-side/AdminRoleManager";
 import Head from "./pages/admin-side/Head";
+import EmployeeLayout from "./components/layout/EmployeeLayout";
+import EmployeeCockpit from "./pages/Employee/EmployeeCockpit";
+import Projects from "./pages/Projects";
 
 // Placeholder for other role pages (to be created)
 const SuperAdminPage = () => (
@@ -61,8 +64,20 @@ function App() {
                 element={<DepartmentDashboard />}
               />
               <Route path="profile" element={<UserProfile />} />
+              <Route path="projects" element={<Projects />} />
               {/* <Route path="notifications" element={<Notifications />} /> */}
             </Route>
+
+            {/* Employee Portal Routes */}
+            <Route path="/employee" element={<EmployeeLayout />}>
+              <Route
+                index
+                element={<Navigate to="/employee/cockpit" replace />}
+              />
+              <Route path="cockpit" element={<EmployeeCockpit />} />
+              <Route path="cockpit/:deptId" element={<EmployeeCockpit />} />
+            </Route>
+
             <Route path="/admin" element={<AdminRoleManager />} />
             <Route path="/head" element={<Head />} />
             <Route path="/super-admin" element={<SuperAdminPage />} />

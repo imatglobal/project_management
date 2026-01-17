@@ -26,7 +26,7 @@ const DepartmentGateway = () => {
   const navigate = useNavigate();
 
   const handleEnter = (deptId) => {
-    navigate(`/app/department/${deptId}`);
+    navigate(`/employee/cockpit/${deptId}`);
   };
 
   return (

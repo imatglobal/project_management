@@ -3,7 +3,7 @@ import { Box, Typography } from "@mui/material";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import TaskCard from "./TaskCard";
 
-const ProjectBoard = ({ tasks = [], setTasks }) => {
+const ProjectBoard = ({ tasks = [], setTasks, currentUserId }) => {
   const onDragEnd = (result) => {
     if (!result.destination) return;
 
@@ -94,11 +94,15 @@ const ProjectBoard = ({ tasks = [], setTasks }) => {
                       const originalIndex = tasks.findIndex(
                         (t) => t._id === task._id
                       );
+
                       return (
                         <TaskCard
                           key={task._id || index}
                           task={task}
                           index={originalIndex}
+                          isDragDisabled={
+                            currentUserId && task.assignedTo !== currentUserId
+                          }
                         />
                       );
                     })}

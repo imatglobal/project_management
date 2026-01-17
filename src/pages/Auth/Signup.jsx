@@ -273,10 +273,8 @@ const Signup = () => {
               startIcon={<GoogleIcon />}
               onClick={async () => {
                 try {
-                  const res = await axios.get(
-                    "http://localhost:8080/auth/google"
-                  );
-                  console.log(res.data);
+                  window.location.href = "http://localhost:8080/google/auth";
+
                 } catch (error) {
                   console.log(error);
                   showToast("Google Signup Failed", "error");
@@ -286,7 +284,7 @@ const Signup = () => {
                 color: "#fff",
                 borderColor: "rgba(255,255,255,0.2)",
                 "&:hover": {
-                  borderColor: "#00d4ff",
+                  borderColor: "#0b0d0d",
                   bgcolor: "rgba(0, 212, 255, 0.05)",
                 },
               }}
@@ -299,10 +297,7 @@ const Signup = () => {
               startIcon={<GitHubIcon />}
               onClick={async () => {
                 try {
-                  const res = await axios.get(
-                    "http://localhost:8080/auth/github"
-                  );
-                  console.log(res.data);
+                  window.location.href = "http://localhost:8080/oauth2/github";
                 } catch (error) {
                   console.log(error);
                   showToast("GitHub Signup Failed", "error");
