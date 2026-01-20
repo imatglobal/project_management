@@ -17,12 +17,13 @@ import UserProfile from "./pages/User/UserProfile";
 // import Notifications from "./pages/Notifications";
 
 import DepartmentGateway from "./pages/Dashboard/DepartmentGateway";
-import DepartmentDashboard from "./pages/Dashboard/DepartmentDashboard";
+// import DepartmentDashboard from "./pages/Dashboard/DepartmentDashboard";
 import AdminRoleManager from "./pages/admin-side/AdminRoleManager";
 import Head from "./pages/admin-side/Head";
 import EmployeeLayout from "./components/layout/EmployeeLayout";
 import EmployeeCockpit from "./pages/Employee/EmployeeCockpit";
 import Projects from "./pages/Projects";
+import HRDashboard from "./pages/admin-side/HRDashboard";
 
 // Placeholder for other role pages (to be created)
 const SuperAdminPage = () => (
@@ -59,10 +60,10 @@ function App() {
             <Route path="/app" element={<MainLayout />}>
               <Route index element={<Navigate to="/app/gateway" replace />} />
               <Route path="gateway" element={<DepartmentGateway />} />
-              <Route
+              {/* <Route
                 path="department/:deptId"
                 element={<DepartmentDashboard />}
-              />
+              /> */}
               <Route path="profile" element={<UserProfile />} />
               <Route path="projects" element={<Projects />} />
               {/* <Route path="notifications" element={<Notifications />} /> */}
@@ -80,6 +81,7 @@ function App() {
 
             <Route path="/admin" element={<AdminRoleManager />} />
             <Route path="/head" element={<Head />} />
+            <Route path="/hr-dashboard" element={<HRDashboard/>}/>
             <Route path="/super-admin" element={<SuperAdminPage />} />
             <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
             <Route path="/developer" element={<DeveloperPage />} />

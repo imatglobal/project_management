@@ -1,22 +1,18 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Grid, Container } from "@mui/material";
 import { GlassContainer } from "../../components/common/GlassComp";
 import { useNavigate } from "react-router-dom";
-import ComputerIcon from "@mui/icons-material/Computer";
-import CampaignIcon from "@mui/icons-material/Campaign";
 
 const departments = [
   {
     id: "it",
     title: "IT Department",
-    icon: <ComputerIcon sx={{ fontSize: 60 }} />,
     color: "#00d4ff",
     desc: "Technology & Infrastructure",
   },
   {
     id: "marketing",
     title: "Digital Marketing",
-    icon: <CampaignIcon sx={{ fontSize: 60 }} />,
     color: "#ff4081",
     desc: "Growth & Campaigns",
   },
@@ -24,6 +20,27 @@ const departments = [
 
 const DepartmentGateway = () => {
   const navigate = useNavigate();
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    // Fetch departments from server
+    // Example: fetch('/api/departments').then(res => res.json()).then(data => setDepartments(data));
+    // For now, using dummy data
+    setDepartments([
+      {
+        id: "it",
+        title: "IT Department",
+        color: "#00d4ff",
+        desc: "Technology & Infrastructure",
+      },
+      {
+        id: "marketing",
+        title: "Digital Marketing",
+        color: "#ff4081",
+        desc: "Growth & Campaigns",
+      },
+    ]);
+  }, []);
 
   const handleEnter = (deptId) => {
     navigate(`/employee/cockpit/${deptId}`);
@@ -64,37 +81,63 @@ const DepartmentGateway = () => {
                   p: 4,
                   textAlign: "center",
                   cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  border: "1px solid rgba(255,255,255,0.05)",
+                  transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)`,
+                  backdropFilter: "blur(20px)",
+                  position: "relative",
+                  overflow: "hidden",
+                  "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `linear-gradient(45deg, ${dept.color}20 0%, transparent 50%, ${dept.color}10 100%)`,
+                    opacity: 0,
+                    transition: "opacity 0.4s ease",
+                  },
                   "&:hover": {
-                    transform: "translateY(-10px)",
-                    boxShadow: `0 0 30px ${dept.color}40`,
-                    border: `1px solid ${dept.color}`,
-                    "& .icon-box": {
-                      transform: "scale(1.1)",
+                    transform: "translateY(-15px) scale(1.05)",
+                    boxShadow: `0 20px 40px ${dept.color}30, 0 0 60px ${dept.color}20`,
+                    border: `2px solid ${dept.color}60`,
+                    "&::before": {
+                      opacity: 1,
+                    },
+                    "& .title": {
                       color: dept.color,
+                      textShadow: `0 0 20px ${dept.color}80`,
+                    },
+                    "& .desc": {
+                      color: "#e2e8f0",
                     },
                   },
                 }}
               >
-                <Box
-                  className="icon-box"
+                <Typography
+                  variant="h5"
+                  className="title"
                   sx={{
+                    fontWeight: 800,
                     color: "#fff",
                     mb: 2,
                     transition: "all 0.3s ease",
-                    display: "inline-block",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
                   }}
-                >
-                  {dept.icon}
-                </Box>
-                <Typography
-                  variant="h5"
-                  sx={{ fontWeight: 700, color: "#fff", mb: 1 }}
                 >
                   {dept.title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#a0aec0" }}>
+                <Typography
+                  variant="body1"
+                  className="desc"
+                  sx={{
+                    color: "#a0aec0",
+                    transition: "all 0.3s ease",
+                    fontWeight: 500,
+                  }}
+                >
                   {dept.desc}
                 </Typography>
               </GlassContainer>

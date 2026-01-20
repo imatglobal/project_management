@@ -18,9 +18,8 @@ import axios from "axios";
 
 const roles = [
   { title: "Super Admin", level: "Critical", color: "#ff4d4f", route: "/super-admin" },
-  { title: "Admin", level: "High", color: "#00d4ff", route: "/admin-dashboard" },
+  { title: "HR", level: "High", color: "#00d4ff", route: "/hr-dashboard" },
   { title: "Head", level: "Medium", color: "#4ade80", route: "/head" },
-  { title: "Developer", level: "Standard", color: "#a855f7", route: "/developer" },
 ];
 
 const AdminRoleManager = () => {

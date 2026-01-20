@@ -8,14 +8,10 @@ import {
   IconButton,
   Avatar,
   AvatarGroup,
-  Button,
-  Tabs,
-  Tab,
   LinearProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import AddIcon from "@mui/icons-material/Add";
 import FolderIcon from "@mui/icons-material/Folder";
 import { GlassContainer } from "../components/common/GlassComp";
 import { motion, AnimatePresence } from "framer-motion";
@@ -100,15 +96,13 @@ const itemVariants = {
 };
 
 const Projects = () => {
-  const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredProjects = projectsData.filter((project) => {
-    const matchesTab = activeTab === "All" || project.dept === activeTab;
     const matchesSearch = project.title
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    return matchesTab && matchesSearch;
+    return matchesSearch;
   });
 
   const getStatusColor = (status) => {
@@ -172,43 +166,7 @@ const Projects = () => {
               sx={{ color: "#fff", width: { xs: 150, md: 250 } }}
             />
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{
-              background: "linear-gradient(135deg, #00d4ff 0%, #009bb3 100%)",
-              fontWeight: 600,
-              boxShadow: "0 4px 20px rgba(0, 212, 255, 0.2)",
-            }}
-          >
-            New Project
-          </Button>
         </Box>
-      </Box>
-
-      {/* Tabs / Filters */}
-      <Box sx={{ mb: 4, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        <Tabs
-          value={activeTab}
-          onChange={(e, val) => setActiveTab(val)}
-          textColor="primary"
-          indicatorColor="primary"
-          sx={{
-            "& .MuiTab-root": {
-              color: "#a0aec0",
-              textTransform: "none",
-              fontWeight: 500,
-              fontSize: "1rem",
-              mr: 2,
-              "&.Mui-selected": { color: "#fff", fontWeight: 700 },
-            },
-            "& .MuiTabs-indicator": { backgroundColor: "#00d4ff" },
-          }}
-        >
-          {["All", "IT", "Marketing", "Sales", "HR"].map((tab) => (
-            <Tab key={tab} label={tab} value={tab} />
-          ))}
-        </Tabs>
       </Box>
 
       {/* Projects Grid */}
@@ -221,10 +179,16 @@ const Projects = () => {
           <AnimatePresence>
             {filteredProjects.map((project) => (
               <Grid item xs={12} md={6} lg={4} key={project.id}>
-                <motion.div variants={itemVariants} layout>
+                <motion.div 
+                  variants={itemVariants} 
+                  layout
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
                   <GlassContainer
                     sx={{
                       p: 3,
+                      minHeight: 320,
                       height: "100%",
                       display: "flex",
                       flexDirection: "column",
@@ -232,9 +196,10 @@ const Projects = () => {
                       transition: "all 0.3s ease",
                       border: "1px solid rgba(255, 255, 255, 0.05)",
                       "&:hover": {
-                        transform: "translateY(-5px)",
-                        boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
-                        border: `1px solid ${getStatusColor(project.status)}50`,
+                        transform: "translateY(-8px)",
+                        boxShadow: `0 15px 50px rgba(0,0,0,0.4), 0 0 20px ${getStatusColor(project.status)}30`,
+                        border: `2px solid ${getStatusColor(project.status)}70`,
+                        background: `linear-gradient(135deg, rgba(20, 25, 40, 0.8), rgba(30, 35, 50, 0.9))`,
                       },
                       position: "relative",
                       overflow: "hidden",
