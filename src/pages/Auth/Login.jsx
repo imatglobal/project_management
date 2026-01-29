@@ -48,6 +48,7 @@ const Login = () => {
         if (res.status === 200) {
           showToast("Login successful!", "success");
           console.log(res.data);
+          localStorage.setItem("token", res.data.token);
           // navigate to dashboard
           setTimeout(() => {
             navigate("/app/gateway");
@@ -237,10 +238,7 @@ const Login = () => {
               startIcon={<GoogleIcon />}
               onClick={async () => {
                 try {
-                  axios.get(
-                    "http://localhost:8080/auth/google"
-                  );
-
+                  axios.get("http://localhost:8080/auth/google");
                 } catch (error) {
                   console.log(error);
                   showToast("Google Login Failed", "error");
@@ -264,7 +262,7 @@ const Login = () => {
               onClick={async () => {
                 try {
                   const res = await axios.get(
-                    "http://localhost:8080/auth/github"
+                    "http://localhost:8080/auth/github",
                   );
                   console.log(res.data);
                 } catch (error) {

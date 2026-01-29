@@ -13,7 +13,6 @@ import {
   Chip,
   Grid,
   IconButton,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -27,15 +26,17 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  MenuItem,
   CircularProgress,
+  Avatar,
+  useTheme,
+  alpha,
+  Zoom,
+  Fade,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import BusinessIcon from "@mui/icons-material/Business";
 import ReportIcon from "@mui/icons-material/Report";
@@ -49,7 +50,36 @@ import BlockIcon from "@mui/icons-material/Block";
 import WarningIcon from "@mui/icons-material/Warning";
 import axios from "axios";
 
+// --- Styled Components & Theme Constants ---
+const GLASS_BG = "rgba(17, 25, 40, 0.75)";
+const GLASS_BORDER = "rgba(255, 255, 255, 0.125)";
+
+const GlassCard = ({ children, sx = {}, hoverEffect = true }) => (
+  <Card
+    sx={{
+      background: GLASS_BG,
+      backdropFilter: "blur(16px) saturate(180%)",
+      border: `1px solid ${GLASS_BORDER}`,
+      borderRadius: "16px",
+      boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+      color: "#e2e8f0",
+      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      "&:hover": hoverEffect
+        ? {
+            transform: "translateY(-4px)",
+            boxShadow: "0 12px 40px 0 rgba(0, 0, 0, 0.5)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+          }
+        : {},
+      ...sx,
+    }}
+  >
+    {children}
+  </Card>
+);
+
 const HRDashboard = () => {
+  const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -68,10 +98,16 @@ const HRDashboard = () => {
     password: "",
     active: true,
   });
-  const [deptForm, setDeptForm] = useState({ name: "", description: "" });
+  const [deptForm, setDeptForm] = useState({
+    id: "",
+    title: "",
+    color: "",
+    description: "",
+  });
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -90,7 +126,6 @@ const HRDashboard = () => {
     try {
       const res = await axios.get("http://localhost:8080/admin/users");
       setUsers(res.data);
-      console.log(res.data);
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -98,7 +133,7 @@ const HRDashboard = () => {
 
   const fetchDepartments = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/hr/departments");
+      const res = await axios.get("http://localhost:8080/admin/departments");
       setDepartments(res.data);
     } catch (error) {
       console.error("Error fetching departments:", error);
@@ -107,7 +142,7 @@ const HRDashboard = () => {
 
   const fetchReports = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/hr/reports");
+      const res = await axios.get("http://localhost:8080/admin/reports");
       setReports(res.data);
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -116,7 +151,13 @@ const HRDashboard = () => {
 
   const fetchLogs = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/hr/logs");
+      let token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:8080/admin/employe_log", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
       setLogs(res.data);
     } catch (error) {
       console.error("Error fetching logs:", error);
@@ -144,7 +185,9 @@ const HRDashboard = () => {
 
   const handleDeptDialogOpen = (dept = null) => {
     setEditingDept(dept);
-    setDeptForm(dept ? { ...dept } : { name: "", description: "" });
+    setDeptForm(
+      dept ? { ...dept } : { id: "", title: "", color: "", description: "" },
+    );
     setOpenDeptDialog(true);
   };
 
@@ -162,13 +205,10 @@ const HRDashboard = () => {
           `http://localhost:8080/admin/updateEmploye/${id}`,
           updateData,
         );
-        console.log(updateData);
       } else {
-        // console.log(userForm);
         await axios
           .post("http://localhost:8080/admin/employes", userForm)
           .then((res) => {
-            console.log(res.data);
             setAlertMessage(`User ${userForm.name} added successfully`);
             setAlertOpen(true);
           });
@@ -183,14 +223,13 @@ const HRDashboard = () => {
   const handleDeptSubmit = async () => {
     try {
       if (editingDept) {
+        let id = editingDept._id;
         await axios.put(
-          `http://localhost:8080/hr/departments/${editingDept.id}`,
+          `http://localhost:8080/admin/Editdepartments/${id}`,
           deptForm,
         );
       } else {
-        await axios
-          .post("http://localhost:8080/admin/departments", deptForm)
-          .then((res) => console.log(res.data));
+        await axios.post("http://localhost:8080/admin/addDep", deptForm);
       }
       fetchDepartments();
       handleDeptDialogClose();
@@ -221,13 +260,9 @@ const HRDashboard = () => {
         await axios
           .delete(`http://localhost:8080/admin/deleteEmp/${userToDelete._id}`)
           .then((res) => {
-            console.log(res.data);
-            // Remove user from UI immediately
             setUsers(users.filter((u) => u._id !== userToDelete._id));
-            // Show success alert
             setAlertMessage(`User ${userToDelete.name} deleted successfully`);
             setAlertOpen(true);
-            // Auto-close alert after 3 seconds
             setTimeout(() => setAlertOpen(false), 3000);
           });
       } catch (error) {
@@ -245,852 +280,1119 @@ const HRDashboard = () => {
 
   const handleDeleteDept = async (deptId) => {
     try {
-      // console.log(deptId)
-      await axios.delete(`http://localhost:8080/hr/departments/${deptId}`);
+      let id = deptId;
+      await axios.delete(`http://localhost:8080/admin/deleteDept/${id}`);
       fetchDepartments();
     } catch (error) {
       console.error("Error deleting department:", error);
     }
   };
 
+  const StatCard = ({ title, value, icon: Icon, color }) => (
+    <GlassCard
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        "&::after": {
+          content: '""',
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: "100%",
+          height: "4px",
+          background: color,
+          boxShadow: `0 0 20px ${color}`,
+        },
+      }}
+    >
+      <CardContent sx={{ p: 4, display: "flex", alignItems: "center", gap: 3 }}>
+        <Box
+          sx={{
+            p: 2,
+            borderRadius: "16px",
+            background: alpha(color, 0.15),
+            color: color,
+            display: "flex",
+            boxShadow: `0 0 20px ${alpha(color, 0.3)}`,
+          }}
+        >
+          <Icon sx={{ fontSize: 40 }} />
+        </Box>
+        <Box>
+          <Typography
+            variant="h3"
+            fontWeight="800"
+            sx={{
+              background: `linear-gradient(135deg, white, ${alpha(
+                color,
+                0.5,
+              )})`,
+              backgroundClip: "text",
+              textFillColor: "transparent",
+            }}
+          >
+            {value}
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#94a3b8", mt: 0.5 }}>
+            {title}
+          </Typography>
+        </Box>
+      </CardContent>
+    </GlassCard>
+  );
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        p: { xs: 1, sm: 2, md: 3, lg: 4 },
-        background: "radial-gradient(circle at top, #0f172a 0%, #020617 70%)",
-        color: "#e5e7eb",
+        background: "#0f172a",
+        backgroundImage: `
+          radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)
+        `,
+        p: { xs: 2, md: 4 },
+        color: "#e2e8f0",
       }}
     >
-      <Typography
-        variant="h3"
-        sx={{
-          textAlign: "center",
-          mb: { xs: 2, md: 4 },
-          fontWeight: 700,
-          fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem", lg: "3rem" },
-          background: "linear-gradient(135deg, #00d4ff, #4ade80)",
-          backgroundClip: "text",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          textShadow: "0 0 20px rgba(0, 212, 255, 0.5)",
-        }}
-      >
-        HR Dashboard
-      </Typography>
-
-      {alertOpen && (
-        <Alert
-          severity="success"
-          onClose={() => setAlertOpen(false)}
-          sx={{ mb: 2 }}
-        >
-          {alertMessage}
-        </Alert>
-      )}
-
-      {loading ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "200px",
-          }}
-        >
-          <CircularProgress sx={{ color: "#00d4ff" }} size={60} />
-          <Typography sx={{ ml: 2, color: "#94a3b8" }}>
-            Loading dashboard data...
+      {/* Header */}
+      <Fade in={true} timeout={800}>
+        <Box sx={{ mb: 6, textAlign: "center" }}>
+          <Typography
+            variant="h2"
+            sx={{
+              fontWeight: 800,
+              mb: 1,
+              background: "linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 0 20px rgba(56, 189, 248, 0.3))",
+            }}
+          >
+            HR Command Center
+          </Typography>
+          <Typography variant="h6" sx={{ color: "#64748b" }}>
+            Overview & Management
           </Typography>
         </Box>
-      ) : (
-        <>
-          {/* Dashboard Stats */}
-          <Grid container spacing={3} sx={{ mb: 4, justifyContent: "center" }}>
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <Card
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
-                  boxShadow: "0 8px 32px rgba(102, 126, 234, 0.3)",
-                  transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-5px)",
-                    boxShadow: "0 12px 40px rgba(102, 126, 234, 0.4)",
-                  },
-                  borderRadius: 3,
-                  minHeight: 120,
-                }}
-              >
-                <CardContent sx={{ textAlign: "center", py: 3 }}>
-                  <PeopleIcon sx={{ fontSize: { xs: 32, md: 40 }, mb: 1 }} />
-                  <Typography
-                    variant="h4"
-                    sx={{ fontSize: { xs: "2rem", md: "2.5rem" } }}
-                  >
-                    {users.length}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontSize: { xs: "0.8rem", md: "0.875rem" } }}
-                  >
-                    Total Users
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <Card
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                  color: "white",
-                  boxShadow: "0 8px 32px rgba(240, 147, 251, 0.3)",
-                  transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-5px)",
-                    boxShadow: "0 12px 40px rgba(240, 147, 251, 0.4)",
-                  },
-                  borderRadius: 3,
-                  minHeight: 120,
-                }}
-              >
-                <CardContent sx={{ textAlign: "center", py: 3 }}>
-                  <CheckCircleIcon
-                    sx={{ fontSize: { xs: 32, md: 40 }, mb: 1 }}
-                  />
-                  <Typography
-                    variant="h4"
-                    sx={{ fontSize: { xs: "2rem", md: "2.5rem" } }}
-                  >
-                    {users.filter((u) => u.active).length}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontSize: { xs: "0.8rem", md: "0.875rem" } }}
-                  >
-                    Active Users
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <Card
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-                  color: "white",
-                  boxShadow: "0 8px 32px rgba(79, 172, 254, 0.3)",
-                  transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-5px)",
-                    boxShadow: "0 12px 40px rgba(79, 172, 254, 0.4)",
-                  },
-                  borderRadius: 3,
-                  minHeight: 120,
-                }}
-              >
-                <CardContent sx={{ textAlign: "center", py: 3 }}>
-                  <FolderIcon sx={{ fontSize: { xs: 32, md: 40 }, mb: 1 }} />
-                  <Typography
-                    variant="h4"
-                    sx={{ fontSize: { xs: "2rem", md: "2.5rem" } }}
-                  >
-                    {departments.length}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontSize: { xs: "0.8rem", md: "0.875rem" } }}
-                  >
-                    Departments
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <Card
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-                  color: "white",
-                  boxShadow: "0 8px 32px rgba(67, 233, 123, 0.3)",
-                  transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-5px)",
-                    boxShadow: "0 12px 40px rgba(67, 233, 123, 0.4)",
-                  },
-                  borderRadius: 3,
-                  minHeight: 120,
-                }}
-              >
-                <CardContent sx={{ textAlign: "center", py: 3 }}>
-                  <AssessmentIcon
-                    sx={{ fontSize: { xs: 32, md: 40 }, mb: 1 }}
-                  />
-                  <Typography
-                    variant="h4"
-                    sx={{ fontSize: { xs: "2rem", md: "2.5rem" } }}
-                  >
-                    {reports.length}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontSize: { xs: "0.8rem", md: "0.875rem" } }}
-                  >
-                    Reports
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <Card
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-                  color: "white",
-                  boxShadow: "0 8px 32px rgba(250, 112, 154, 0.3)",
-                  transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-5px)",
-                    boxShadow: "0 12px 40px rgba(250, 112, 154, 0.4)",
-                  },
-                  borderRadius: 3,
-                  minHeight: 120,
-                }}
-              >
-                <CardContent sx={{ textAlign: "center", py: 3 }}>
-                  <ScheduleIcon sx={{ fontSize: { xs: 32, md: 40 }, mb: 1 }} />
-                  <Typography
-                    variant="h4"
-                    sx={{ fontSize: { xs: "2rem", md: "2.5rem" } }}
-                  >
-                    {logs.length}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontSize: { xs: "0.8rem", md: "0.875rem" } }}
-                  >
-                    Log Entries
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+      </Fade>
 
+      {/* Stats Grid */}
+      <Grid container spacing={3} sx={{ mb: 6 }}>
+        {[
+          {
+            title: "Total Employees",
+            value: users.length,
+            icon: PeopleIcon,
+            color: "#38bdf8",
+          },
+          {
+            title: "Active Now",
+            value: users.filter((u) => u.active).length,
+            icon: CheckCircleIcon,
+            color: "#4ade80",
+          },
+          {
+            title: "Departments",
+            value: departments.length,
+            icon: FolderIcon,
+            color: "#f472b6",
+          },
+          {
+            title: "Pending Reports",
+            value: reports.length,
+            icon: AssessmentIcon,
+            color: "#fbbf24",
+          },
+        ].map((stat, index) => (
+          <Grid item xs={12} sm={6} lg={3} key={index}>
+            <Zoom in={true} style={{ transitionDelay: `${index * 100}ms` }}>
+              <Box>
+                <StatCard {...stat} />
+              </Box>
+            </Zoom>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Main Content Area */}
+      <GlassCard sx={{ minHeight: "600px", overflow: "hidden" }}>
+        {/* Navigation Tabs */}
+        <Box
+          sx={{
+            borderBottom: `1px solid ${GLASS_BORDER}`,
+            background: "rgba(0,0,0,0.2)",
+          }}
+        >
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
             centered
             sx={{
-              mb: 4,
-              "& .MuiTab-root": { color: "#94a3b8" },
-              "& .Mui-selected": { color: "#00d4ff" },
+              "& .MuiTabs-indicator": {
+                height: "4px",
+                borderRadius: "4px 4px 0 0",
+                background: "#38bdf8",
+                boxShadow: "0 0 10px #38bdf8",
+              },
             }}
           >
-            <Tab icon={<PersonAddIcon />} label="User Management" />
-            <Tab icon={<BusinessIcon />} label="Departments" />
-            <Tab icon={<ReportIcon />} label="Reports" />
-            <Tab icon={<AccessTimeIcon />} label="Employee Logs" />
+            {[
+              { icon: PersonAddIcon, label: "Employees" },
+              { icon: BusinessIcon, label: "Departments" },
+              { icon: ReportIcon, label: "Work Reports" },
+              { icon: AccessTimeIcon, label: "Attendance Logs" },
+            ].map((tab, idx) => (
+              <Tab
+                key={idx}
+                icon={<tab.icon />}
+                label={tab.label}
+                sx={{
+                  color: "#94a3b8",
+                  minHeight: 72,
+                  fontSize: "0.95rem",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&.Mui-selected": { color: "#38bdf8" },
+                  transition: "all 0.3s",
+                }}
+              />
+            ))}
           </Tabs>
+        </Box>
 
+        {/* Tab Content */}
+        <Box sx={{ p: 4 }}>
+          {/* USER MANAGEMENT TAB */}
           {tabValue === 0 && (
-            <Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}
-              >
-                <Typography variant="h5">User Accounts</Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => handleUserDialogOpen()}
+            <Fade in={tabValue === 0}>
+              <Box>
+                <Box
                   sx={{
-                    background: "linear-gradient(135deg, #00d4ff, #4ade80)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 4,
                   }}
                 >
-                  Add User
-                </Button>
-              </Box>
-              <TableContainer
-                component={Paper}
-                sx={{
-                  background: "#1a1f3a",
-                  color: "#e5e7eb",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-                  "&::-webkit-scrollbar": {
-                    height: "8px",
-                  },
-                  "&::-webkit-scrollbar-track": {
-                    background: "#0f172a",
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: "#667eea",
-                    borderRadius: "4px",
-                  },
-                }}
-              >
-                <Table sx={{ minWidth: 650 }}>
-                  <TableHead>
-                    <TableRow
-                      sx={{
-                        background:
-                          "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                      }}
-                    >
-                      <TableCell
-                        sx={{
-                          color: "#e5e7eb",
-                          fontWeight: "bold",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                        }}
-                      >
-                        Name
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#e5e7eb",
-                          fontWeight: "bold",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                        }}
-                      >
-                        Email
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#e5e7eb",
-                          fontWeight: "bold",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                          display: { xs: "none", md: "table-cell" },
-                        }}
-                      >
-                        Department
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#e5e7eb",
-                          fontWeight: "bold",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                          display: { xs: "none", sm: "table-cell" },
-                        }}
-                      >
-                        Role
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#e5e7eb",
-                          fontWeight: "bold",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                        }}
-                      >
-                        Status
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#e5e7eb",
-                          fontWeight: "bold",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                        }}
-                      >
-                        Actions
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow
-                        key={user.id}
-                        sx={{
-                          "&:hover": {
-                            backgroundColor: "#0f172a",
-                            transform: "scale(1.01)",
-                            transition: "all 0.2s ease-in-out",
-                          },
-                          borderBottom: "1px solid #374151",
-                          transition: "all 0.2s ease-in-out",
-                        }}
-                      >
-                        <TableCell
-                          sx={{
-                            color: "#e5e7eb",
-                            fontSize: { xs: "0.875rem", md: "1rem" },
-                          }}
-                        >
-                          {user.name}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: "#e5e7eb",
-                            fontSize: { xs: "0.875rem", md: "1rem" },
-                          }}
-                        >
-                          {user.email}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: "#e5e7eb",
-                            fontSize: { xs: "0.875rem", md: "1rem" },
-                            display: { xs: "none", md: "table-cell" },
-                          }}
-                        >
-                          {user.department}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: "#e5e7eb",
-                            fontSize: { xs: "0.875rem", md: "1rem" },
-                            display: { xs: "none", sm: "table-cell" },
-                          }}
-                        >
-                          {user.role}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={user.active ? "Active" : "Inactive"}
-                            color={user.active ? "success" : "error"}
-                            size="small"
+                  <Typography variant="h5" fontWeight="bold">
+                    User Directory
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => handleUserDialogOpen()}
+                    sx={{
+                      background: "linear-gradient(135deg, #38bdf8, #2563eb)",
+                      boxShadow: "0 4px 15px rgba(56, 189, 248, 0.4)",
+                      "&:hover": {
+                        background: "linear-gradient(135deg, #0ea5e9, #1d4ed8)",
+                      },
+                    }}
+                  >
+                    Add Employee
+                  </Button>
+                </Box>
+                <TableContainer
+                  component={Paper}
+                  sx={{ background: "transparent", boxShadow: "none" }}
+                >
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        {[
+                          "Employee",
+                          "Contact Details",
+                          "Role & Dept",
+                          "Status",
+                          "Actions",
+                        ].map((head) => (
+                          <TableCell
+                            key={head}
                             sx={{
-                              fontWeight: "bold",
-                              fontSize: { xs: "0.75rem", md: "0.875rem" },
-                              transition: "all 0.2s ease-in-out",
+                              color: "#64748b",
+                              borderBottom: `1px solid ${GLASS_BORDER}`,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.05em",
                             }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box
-                            sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
                           >
-                            <IconButton
-                              onClick={() => handleUserDialogOpen(user)}
-                              sx={{
-                                color: "#00d4ff",
-                                "&:hover": {
-                                  backgroundColor: "rgba(0, 212, 255, 0.1)",
-                                },
-                              }}
-                              title="Edit User"
-                            >
-                              <EditIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                            </IconButton>
-                            <IconButton
-                              onClick={() =>
-                                handleToggleUserStatus(user.id, user.active)
-                              }
-                              sx={{
-                                color: user.active ? "#ff4d4f" : "#4ade80",
-                                "&:hover": {
-                                  backgroundColor: user.active
-                                    ? "rgba(255, 77, 79, 0.1)"
-                                    : "rgba(74, 222, 128, 0.1)",
-                                },
-                              }}
-                              title={
-                                user.active
-                                  ? "Deactivate User"
-                                  : "Activate User"
-                              }
-                            >
-                              {user.active ? (
-                                <BlockIcon
-                                  sx={{ fontSize: { xs: 20, md: 24 } }}
-                                />
-                              ) : (
-                                <CheckCircleIcon
-                                  sx={{ fontSize: { xs: 20, md: 24 } }}
-                                />
-                              )}
-                            </IconButton>
-                            <IconButton
-                              onClick={() => handleDeleteUser(user)}
-                              sx={{
-                                color: "#ff4d4f",
-                                "&:hover": {
-                                  backgroundColor: "rgba(255, 77, 79, 0.1)",
-                                },
-                              }}
-                              title="Delete User"
-                            >
-                              <DeleteIcon
-                                sx={{ fontSize: { xs: 20, md: 24 } }}
-                              />
-                            </IconButton>
-                          </Box>
-                        </TableCell>
+                            {head}
+                          </TableCell>
+                        ))}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
+                    </TableHead>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow
+                          key={user._id}
+                          sx={{
+                            "&:hover": {
+                              background: "rgba(255,255,255,0.02)",
+                            },
+                            transition: "background 0.2s",
+                          }}
+                        >
+                          <TableCell
+                            sx={{ borderBottom: `1px solid ${GLASS_BORDER}` }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              <Avatar
+                                sx={{
+                                  background: `linear-gradient(135deg, ${
+                                    ["#f472b6", "#c084fc", "#818cf8"][
+                                      user.name.length % 3
+                                    ]
+                                  }, ${
+                                    ["#db2777", "#9333ea", "#4f46e5"][
+                                      user.name.length % 3
+                                    ]
+                                  })`,
+                                  color: "white",
+                                }}
+                              >
+                                {user.name.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography fontWeight="600" color="#e2e8f0">
+                                {user.name}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              borderBottom: `1px solid ${GLASS_BORDER}`,
+                              color: "#94a3b8",
+                            }}
+                          >
+                            {user.email}
+                          </TableCell>
+                          <TableCell
+                            sx={{ borderBottom: `1px solid ${GLASS_BORDER}` }}
+                          >
+                            <Stack direction="row" spacing={1}>
+                              <Chip
+                                label={user.department || "General"}
+                                size="small"
+                                sx={{
+                                  background: alpha("#38bdf8", 0.1),
+                                  color: "#38bdf8",
+                                  border: `1px solid ${alpha("#38bdf8", 0.2)}`,
+                                }}
+                              />
+                              <Chip
+                                label={user.role || "Staff"}
+                                size="small"
+                                sx={{
+                                  background: alpha("#c084fc", 0.1),
+                                  color: "#c084fc",
+                                  border: `1px solid ${alpha("#c084fc", 0.2)}`,
+                                }}
+                              />
+                            </Stack>
+                          </TableCell>
+                          <TableCell
+                            sx={{ borderBottom: `1px solid ${GLASS_BORDER}` }}
+                          >
+                            <Chip
+                              label={user.active ? "Active" : "Inactive"}
+                              size="small"
+                              sx={{
+                                background: user.active
+                                  ? alpha("#4ade80", 0.1)
+                                  : alpha("#ef4444", 0.1),
+                                color: user.active ? "#4ade80" : "#ef4444",
+                                fontWeight: "bold",
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell
+                            sx={{ borderBottom: `1px solid ${GLASS_BORDER}` }}
+                          >
+                            <Stack direction="row" spacing={1}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleUserDialogOpen(user)}
+                                sx={{
+                                  color: "#38bdf8",
+                                  "&:hover": {
+                                    background: alpha("#38bdf8", 0.1),
+                                  },
+                                }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  handleToggleUserStatus(
+                                    user._id || user.id,
+                                    user.active,
+                                  )
+                                }
+                                sx={{
+                                  color: user.active ? "#ef4444" : "#4ade80",
+                                  "&:hover": {
+                                    background: alpha(
+                                      user.active ? "#ef4444" : "#4ade80",
+                                      0.1,
+                                    ),
+                                  },
+                                }}
+                              >
+                                {user.active ? (
+                                  <BlockIcon fontSize="small" />
+                                ) : (
+                                  <CheckCircleIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteUser(user)}
+                                sx={{
+                                  color: "#ef4444",
+                                  "&:hover": {
+                                    background: alpha("#ef4444", 0.1),
+                                  },
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Fade>
           )}
 
+          {/* DEPARTMENTS TAB */}
           {tabValue === 1 && (
-            <Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}
-              >
-                <Typography variant="h5">Departments</Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => handleDeptDialogOpen()}
+            <Fade in={tabValue === 1}>
+              <Box>
+                <Box
                   sx={{
-                    background: "linear-gradient(135deg, #00d4ff, #4ade80)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 4,
                   }}
                 >
-                  Add Department
-                </Button>
-              </Box>
-              <Grid container spacing={3}>
-                {departments.map((dept) => (
-                  <Grid item xs={12} sm={6} md={4} key={dept.id}>
-                    <Card sx={{ background: "#1a1f3a", color: "#e5e7eb" }}>
-                      <CardContent>
-                        <Typography variant="h6">{dept.name}</Typography>
-                        <Typography variant="body2" sx={{ mb: 2 }}>
-                          {dept.description}
-                        </Typography>
+                  <Typography variant="h5" fontWeight="bold">
+                    Departments
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => handleDeptDialogOpen()}
+                    sx={{
+                      background: "linear-gradient(135deg, #f472b6, #db2777)",
+                      boxShadow: "0 4px 15px rgba(244, 114, 182, 0.4)",
+                    }}
+                  >
+                    Add Department
+                  </Button>
+                </Box>
+                <Grid container spacing={4}>
+                  {departments.map((dept) => (
+                    <Grid item xs={12} sm={6} md={4} key={dept.id}>
+                      <GlassCard
+                        hoverEffect={true}
+                        sx={{
+                          position: "relative",
+                          overflow: "hidden",
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                      >
                         <Box
                           sx={{
+                            height: "6px",
+                            background: dept.color || "#38bdf8",
+                            boxShadow: `0 0 15px ${dept.color || "#38bdf8"}`,
+                          }}
+                        />
+                        <CardContent sx={{ p: 4, flexGrow: 1 }}>
+                          <Box
+                            sx={{
+                              width: 60,
+                              height: 60,
+                              borderRadius: "14px",
+                              background: alpha(dept.color || "#38bdf8", 0.1),
+                              color: dept.color || "#38bdf8",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              mb: 3,
+                            }}
+                          >
+                            <Typography variant="h4" fontWeight="bold">
+                              {dept.title
+                                ? dept.title.charAt(0).toUpperCase()
+                                : "#"}
+                            </Typography>
+                          </Box>
+                          <Typography
+                            variant="h5"
+                            fontWeight="bold"
+                            sx={{ mb: 1 }}
+                          >
+                            {dept.title}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "#94a3b8", mb: 3 }}
+                          >
+                            {dept.description}
+                          </Typography>
+                        </CardContent>
+                        <Box
+                          sx={{
+                            p: 2,
+                            borderTop: `1px solid ${GLASS_BORDER}`,
                             display: "flex",
-                            justifyContent: "space-between",
+                            justifyContent: "flex-end",
+                            gap: 1,
+                            background: "rgba(0,0,0,0.1)",
                           }}
                         >
                           <Button
                             size="small"
                             onClick={() => handleDeptDialogOpen(dept)}
-                            sx={{ color: "#00d4ff" }}
+                            sx={{ color: dept.color || "#38bdf8" }}
                           >
                             Edit
                           </Button>
                           <Button
                             size="small"
-                            onClick={() => handleDeleteDept(dept)}
-                            sx={{ color: "#ff4d4f" }}
+                            color="error"
+                            onClick={() => handleDeleteDept(dept._id)}
                           >
                             Delete
                           </Button>
                         </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-          )}
-
-          {tabValue === 2 && (
-            <Box>
-              <Typography variant="h5" sx={{ mb: 3 }}>
-                Daily Reports
-              </Typography>
-              {departments.map((dept) => (
-                <Accordion
-                  key={dept.id}
-                  sx={{ background: "#1a1f3a", color: "#e5e7eb", mb: 2 }}
-                >
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon sx={{ color: "#00d4ff" }} />}
-                  >
-                    <Typography>{dept.name} Reports</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    {reports
-                      .filter((report) => report.departmentId === dept.id)
-                      .map((report) => (
-                        <Card
-                          key={report.id}
-                          sx={{ mb: 2, background: "#0f172a" }}
-                        >
-                          <CardContent>
-                            <Typography variant="h6">
-                              {report.employeeName}
-                            </Typography>
-                            <Typography variant="body2">
-                              {report.content}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              sx={{ color: "#94a3b8" }}
-                            >
-                              {new Date(report.date).toLocaleDateString()}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      ))}
-                  </AccordionDetails>
-                </Accordion>
-              ))}
-            </Box>
-          )}
-
-          {tabValue === 3 && (
-            <Box>
-              <Typography variant="h5" sx={{ mb: 3 }}>
-                Employee Login/Logout Logs
-              </Typography>
-              <TableContainer
-                component={Paper}
-                sx={{ background: "#1a1f3a", color: "#e5e7eb" }}
-              >
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ color: "#e5e7eb" }}>Employee</TableCell>
-                      <TableCell sx={{ color: "#e5e7eb" }}>
-                        Login Time
-                      </TableCell>
-                      <TableCell sx={{ color: "#e5e7eb" }}>
-                        Logout Time
-                      </TableCell>
-                      <TableCell sx={{ color: "#e5e7eb" }}>Duration</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {logs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell sx={{ color: "#e5e7eb" }}>
-                          {log.employeeName}
-                        </TableCell>
-                        <TableCell sx={{ color: "#e5e7eb" }}>
-                          {new Date(log.loginTime).toLocaleString()}
-                        </TableCell>
-                        <TableCell sx={{ color: "#e5e7eb" }}>
-                          {log.logoutTime
-                            ? new Date(log.logoutTime).toLocaleString()
-                            : "Still logged in"}
-                        </TableCell>
-                        <TableCell sx={{ color: "#e5e7eb" }}>
-                          {log.duration
-                            ? `${Math.floor(log.duration / 60)}h ${log.duration % 60}m`
-                            : "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-
-          {/* User Dialog */}
-          <Dialog
-            open={openUserDialog}
-            onClose={handleUserDialogClose}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle sx={{ background: "#1a1f3a", color: "#e5e7eb" }}>
-              {editingUser ? "Edit User" : "Add User"}
-            </DialogTitle>
-            <DialogContent sx={{ background: "#1a1f3a" }}>
-              <Stack spacing={2} sx={{ mt: 2 }}>
-                <TextField
-                  label="Name"
-                  value={userForm.name}
-                  onChange={(e) =>
-                    setUserForm({ ...userForm, name: e.target.value })
-                  }
-                  fullWidth
-                  InputLabelProps={{ sx: { color: "#94a3b8" } }}
-                  inputProps={{ sx: { color: "#e5e7eb" } }}
-                />
-                <TextField
-                  label="Email"
-                  value={userForm.email}
-                  onChange={(e) =>
-                    setUserForm({ ...userForm, email: e.target.value })
-                  }
-                  fullWidth
-                  InputLabelProps={{ sx: { color: "#94a3b8" } }}
-                  inputProps={{ sx: { color: "#e5e7eb" } }}
-                />
-                <FormControl fullWidth>
-                  <InputLabel sx={{ color: "#94a3b8" }}>Department</InputLabel>
-                  <Select
-                    value={userForm.department}
-                    onChange={(e) =>
-                      setUserForm({ ...userForm, department: e.target.value })
-                    }
-                    sx={{ color: "#e5e7eb" }}
-                  >
-                    {/* {departments.map((dept) => (
-                  <MenuItem key={dept.id} value={dept.name}>
-                    {dept.name}
-                  </MenuItem>
-                ))} */}
-                    <MenuItem value="IT">IT</MenuItem>
-                    <MenuItem value="DM">DM</MenuItem>
-                  </Select>
-                </FormControl>
-                {!editingUser && (
-                  <TextField
-                    label="password"
-                    value={userForm.password}
-                    onChange={(e) =>
-                      setUserForm({ ...userForm, password: e.target.value })
-                    }
-                    fullWidth
-                    InputLabelProps={{ sx: { color: "#94a3b8" } }}
-                    inputProps={{ sx: { color: "#e5e7eb" } }}
-                  />
-                )}
-                <Button
-                  onClick={handleUserSubmit}
-                  variant="contained"
-                  sx={{ background: "#00d4ff" }}
-                >
-                  {editingUser ? "Update" : "Create"}
-                </Button>
-              </Stack>
-            </DialogContent>
-          </Dialog>
-
-          {/* Department Dialog */}
-          <Dialog
-            open={openDeptDialog}
-            onClose={handleDeptDialogClose}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle sx={{ background: "#1a1f3a", color: "#e5e7eb" }}>
-              {editingDept ? "Edit Department" : "Add Department"}
-            </DialogTitle>
-            <DialogContent sx={{ background: "#1a1f3a" }}>
-              <Stack spacing={2} sx={{ mt: 2 }}>
-                <TextField
-                  label="Name"
-                  value={deptForm.name}
-                  onChange={(e) =>
-                    setDeptForm({ ...deptForm, name: e.target.value })
-                  }
-                  fullWidth
-                  InputLabelProps={{ sx: { color: "#94a3b8" } }}
-                  inputProps={{ sx: { color: "#e5e7eb" } }}
-                />
-                <TextField
-                  label="Description"
-                  value={deptForm.description}
-                  onChange={(e) =>
-                    setDeptForm({ ...deptForm, description: e.target.value })
-                  }
-                  fullWidth
-                  multiline
-                  rows={3}
-                  InputLabelProps={{ sx: { color: "#94a3b8" } }}
-                  inputProps={{ sx: { color: "#e5e7eb" } }}
-                />
-                <Button
-                  onClick={handleDeptSubmit}
-                  variant="contained"
-                  sx={{ background: "#00d4ff" }}
-                >
-                  {editingDept ? "Update" : "Create"}
-                </Button>
-              </Stack>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Confirmation Dialog */}
-          <Dialog
-            open={openDeleteDialog}
-            onClose={cancelDeleteUser}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-              sx: {
-                background: "linear-gradient(135deg, #1a1f3a 0%, #0f172a 100%)",
-                borderRadius: 3,
-                border: "1px solid #374151",
-              },
-            }}
-          >
-            <DialogTitle
-              sx={{
-                color: "#e5e7eb",
-                textAlign: "center",
-                pb: 1,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mb: 2,
-                }}
-              >
-                <WarningIcon sx={{ fontSize: 48, color: "#ff4d4f", mr: 2 }} />
-                <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                  Confirm Deletion
-                </Typography>
+                      </GlassCard>
+                    </Grid>
+                  ))}
+                </Grid>
               </Box>
-            </DialogTitle>
-            <DialogContent sx={{ textAlign: "center", pb: 3 }}>
-              <Typography variant="body1" sx={{ color: "#94a3b8", mb: 3 }}>
-                Are you sure you want to delete this user? This action cannot be
-                undone.
-              </Typography>
-              {userToDelete && (
+            </Fade>
+          )}
+
+          {/* REPORTS TAB */}
+          {tabValue === 2 && (
+            <Fade in={tabValue === 2}>
+              <Box>
                 <Box
                   sx={{
-                    background: "#0f172a",
-                    p: 2,
-                    borderRadius: 2,
-                    mb: 3,
-                    border: "1px solid #374151",
+                    mb: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  <Typography variant="h6" sx={{ color: "#e5e7eb", mb: 1 }}>
-                    {userToDelete.name}
+                  <Typography variant="h5" fontWeight="bold">
+                    Daily Activity Reports
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#94a3b8" }}>
-                    {userToDelete.email}
-                  </Typography>
+                  <Chip
+                    label={`${reports.length} Total Reports`}
+                    color="warning"
+                    variant="outlined"
+                  />
                 </Box>
-              )}
-              <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-                <Button
-                  onClick={cancelDeleteUser}
-                  variant="outlined"
-                  sx={{
-                    color: "#94a3b8",
-                    borderColor: "#374151",
-                    "&:hover": {
-                      borderColor: "#94a3b8",
-                      backgroundColor: "rgba(148, 163, 184, 0.1)",
-                    },
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={confirmDeleteUser}
-                  variant="contained"
-                  sx={{
-                    background:
-                      "linear-gradient(135deg, #ff4d4f 0%, #ff6b6b 100%)",
-                    "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #ff6b6b 0%, #ff4d4f 100%)",
-                      transform: "translateY(-1px)",
-                      boxShadow: "0 4px 12px rgba(255, 77, 79, 0.4)",
-                    },
-                    transition: "all 0.2s ease-in-out",
-                  }}
-                >
-                  Delete User
-                </Button>
+
+                {Object.entries(
+                  reports.reduce((acc, report) => {
+                    let dept =
+                      report.deptId || report.departmentId || "General";
+                    // Normalize Department Names
+                    if (dept === "DM") dept = "Digital Marketing";
+                    else if (dept === "IT") dept = "IT Department";
+                    else if (dept.length > 10) dept = "General"; // Handle long ID strings as default
+
+                    if (!acc[dept]) acc[dept] = [];
+                    acc[dept].push(report);
+                    return acc;
+                  }, {}),
+                ).map(([category, categoryReports]) => (
+                  <Box key={category} sx={{ mb: 5 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        mb: 2,
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontSize: "0.85rem",
+                        fontWeight: 700,
+                        borderLeft: `4px solid ${
+                          category === "Digital Marketing"
+                            ? "#f472b6"
+                            : category === "IT Department"
+                              ? "#38bdf8"
+                              : "#fbbf24"
+                        }`,
+                        pl: 2,
+                      }}
+                    >
+                      {category}
+                    </Typography>
+                    <Grid container spacing={3}>
+                      {categoryReports.map((report) => (
+                        <Grid
+                          item
+                          xs={12}
+                          md={6}
+                          lg={4}
+                          key={report._id || report.id}
+                        >
+                          <GlassCard
+                            sx={{
+                              height: "100%",
+                              borderLeft: `4px solid ${
+                                category === "Digital Marketing"
+                                  ? "#f472b6"
+                                  : category === "IT Department"
+                                    ? "#38bdf8"
+                                    : "#fbbf24"
+                              }`,
+                            }}
+                          >
+                            <CardContent sx={{ p: 3 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  mb: 2,
+                                }}
+                              >
+                                <Chip
+                                  label={
+                                    report.deptId ||
+                                    report.departmentId ||
+                                    "General"
+                                  }
+                                  size="small"
+                                  sx={{
+                                    background: alpha(
+                                      category === "Digital Marketing"
+                                        ? "#f472b6"
+                                        : category === "IT Department"
+                                          ? "#38bdf8"
+                                          : "#fbbf24",
+                                      0.1,
+                                    ),
+                                    color:
+                                      category === "Digital Marketing"
+                                        ? "#f472b6"
+                                        : category === "IT Department"
+                                          ? "#38bdf8"
+                                          : "#fbbf24",
+                                    fontWeight: "bold",
+                                  }}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: "#94a3b8" }}
+                                >
+                                  {new Date(report.date).toLocaleDateString()}
+                                </Typography>
+                              </Box>
+                              <Typography
+                                variant="h6"
+                                fontWeight="bold"
+                                sx={{ mb: 1, color: "#e2e8f0" }}
+                              >
+                                {report.title}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: "#94a3b8", mb: 0 }}
+                              >
+                                {report.desc || report.content}
+                              </Typography>
+                            </CardContent>
+                          </GlassCard>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                ))}
+
+                {reports.length === 0 && (
+                  <Box sx={{ width: "100%", textAlign: "center", py: 8 }}>
+                    <Typography sx={{ color: "#64748b" }}>
+                      No reports found.
+                    </Typography>
+                  </Box>
+                )}
               </Box>
-            </DialogContent>
-          </Dialog>
-        </>
+            </Fade>
+          )}
+
+          {/* LOGS TAB */}
+          {tabValue === 3 && (
+            <Fade in={tabValue === 3}>
+              <Box>
+                <Box
+                  sx={{
+                    mb: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography variant="h5" fontWeight="bold">
+                    Authentication Logs
+                  </Typography>
+                  <Chip
+                    label={`${logs.length} Total Entries`}
+                    color="primary"
+                    variant="outlined"
+                  />
+                </Box>
+
+                {Object.entries(
+                  logs.reduce((acc, log) => {
+                    let dept = log.users?.department || "General";
+                    // Normalize Department Names
+                    if (dept === "DM") dept = "Digital Marketing";
+                    else if (dept === "IT") dept = "IT Department";
+                    else if (dept.length > 10) dept = "General";
+
+                    if (!acc[dept]) acc[dept] = [];
+                    acc[dept].push(log);
+                    return acc;
+                  }, {}),
+                ).map(([category, categoryLogs]) => (
+                  <Box key={category} sx={{ mb: 5 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        mb: 2,
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontSize: "0.85rem",
+                        fontWeight: 700,
+                        borderLeft: `4px solid ${
+                          category === "Digital Marketing"
+                            ? "#f472b6"
+                            : category === "IT Department"
+                              ? "#38bdf8"
+                              : "#fbbf24"
+                        }`,
+                        pl: 2,
+                      }}
+                    >
+                      {category}
+                    </Typography>
+                    <TableContainer
+                      component={Paper}
+                      sx={{ background: "transparent", boxShadow: "none" }}
+                    >
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell
+                              sx={{
+                                color: "#64748b",
+                                borderBottom: `1px solid ${GLASS_BORDER}`,
+                              }}
+                            >
+                              EMPLOYEE
+                            </TableCell>
+                            <TableCell
+                              sx={{
+                                color: "#64748b",
+                                borderBottom: `1px solid ${GLASS_BORDER}`,
+                              }}
+                            >
+                              DATE
+                            </TableCell>
+                            <TableCell
+                              sx={{
+                                color: "#64748b",
+                                borderBottom: `1px solid ${GLASS_BORDER}`,
+                              }}
+                            >
+                              DEPARTMENT
+                            </TableCell>
+                            <TableCell
+                              sx={{
+                                color: "#64748b",
+                                borderBottom: `1px solid ${GLASS_BORDER}`,
+                              }}
+                            >
+                              SESSION 1
+                            </TableCell>
+                            <TableCell
+                              sx={{
+                                color: "#64748b",
+                                borderBottom: `1px solid ${GLASS_BORDER}`,
+                              }}
+                            >
+                              SESSION 2
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {categoryLogs.map((log) => (
+                            <TableRow
+                              key={log._id}
+                              sx={{
+                                "&:hover": {
+                                  background: "rgba(255,255,255,0.02)",
+                                },
+                              }}
+                            >
+                              <TableCell
+                                sx={{
+                                  borderBottom: `1px solid ${GLASS_BORDER}`,
+                                  color: "#e2e8f0",
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1.5,
+                                  }}
+                                >
+                                  <Avatar
+                                    sx={{
+                                      width: 28,
+                                      height: 28,
+                                      fontSize: "0.75rem",
+                                      background: alpha("#38bdf8", 0.2),
+                                      color: "#38bdf8",
+                                    }}
+                                  >
+                                    {log.users?.name?.charAt(0) || "?"}
+                                  </Avatar>
+                                  {log.users?.name || "Unknown"}
+                                </Box>
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  borderBottom: `1px solid ${GLASS_BORDER}`,
+                                  color: "#94a3b8",
+                                }}
+                              >
+                                {log.date ? log.date.split("T")[0] : "N/A"}
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  borderBottom: `1px solid ${GLASS_BORDER}`,
+                                }}
+                              >
+                                <Chip
+                                  label={log.users?.department || "N/A"}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    color: "#94a3b8",
+                                    borderColor: "#475569",
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  borderBottom: `1px solid ${GLASS_BORDER}`,
+                                  color: "#e2e8f0",
+                                }}
+                              >
+                                {log.first
+                                  ? `${log.first.timeIn} - ${
+                                      log.first.timeOut || "..."
+                                    }`
+                                  : "-"}
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  borderBottom: `1px solid ${GLASS_BORDER}`,
+                                  color: "#e2e8f0",
+                                }}
+                              >
+                                {log.second
+                                  ? `${log.second.timeIn} - ${
+                                      log.second.timeOut || "..."
+                                    }`
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                ))}
+              </Box>
+            </Fade>
+          )}
+        </Box>
+      </GlassCard>
+
+      {/* MODALS */}
+      {/* User Dialog */}
+      <Dialog
+        open={openUserDialog}
+        onClose={handleUserDialogClose}
+        PaperProps={{
+          style: {
+            background: "#1e293b",
+            color: "#e2e8f0",
+            border: `1px solid ${GLASS_BORDER}`,
+            borderRadius: "16px",
+          },
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ borderBottom: `1px solid ${GLASS_BORDER}` }}>
+          {editingUser ? "Edit Information" : "Onboard New Employee"}
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label="Full Name"
+              value={userForm.name}
+              onChange={(e) =>
+                setUserForm({ ...userForm, name: e.target.value })
+              }
+              fullWidth
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#475569" },
+                },
+                "& .MuiInputLabel-root": { color: "#94a3b8" },
+              }}
+            />
+            <TextField
+              label="Email Address"
+              value={userForm.email}
+              onChange={(e) =>
+                setUserForm({ ...userForm, email: e.target.value })
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#475569" },
+                },
+                "& .MuiInputLabel-root": { color: "#94a3b8" },
+              }}
+            />
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: "#94a3b8" }}>
+                Department Assignment
+              </InputLabel>
+              <Select
+                value={userForm.department}
+                onChange={(e) =>
+                  setUserForm({ ...userForm, department: e.target.value })
+                }
+                label="Department Assignment"
+                sx={{
+                  color: "#e2e8f0",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#475569",
+                  },
+                }}
+              >
+                <MenuItem value="IT">IT Department</MenuItem>
+                <MenuItem value="DM">Digital Marketing</MenuItem>
+              </Select>
+            </FormControl>
+            {!editingUser && (
+              <TextField
+                label="Set Password"
+                type="password"
+                value={userForm.password}
+                onChange={(e) =>
+                  setUserForm({ ...userForm, password: e.target.value })
+                }
+                fullWidth
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    color: "#e2e8f0",
+                    "& fieldset": { borderColor: "#475569" },
+                  },
+                  "& .MuiInputLabel-root": { color: "#94a3b8" },
+                }}
+              />
+            )}
+            <Button
+              variant="contained"
+              onClick={handleUserSubmit}
+              size="large"
+              sx={{
+                background: "linear-gradient(135deg, #38bdf8, #2563eb)",
+                height: 48,
+                fontSize: "1rem",
+              }}
+            >
+              Save Changes
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dept Dialog */}
+      <Dialog
+        open={openDeptDialog}
+        onClose={handleDeptDialogClose}
+        PaperProps={{
+          style: {
+            background: "#1e293b",
+            color: "#e2e8f0",
+            border: `1px solid ${GLASS_BORDER}`,
+            borderRadius: "16px",
+          },
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ borderBottom: `1px solid ${GLASS_BORDER}` }}>
+          {editingDept ? "Edit Department" : "Create Department"}
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label="Department ID"
+              value={deptForm.id}
+              onChange={(e) => setDeptForm({ ...deptForm, id: e.target.value })}
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#475569" },
+                },
+                "& .MuiInputLabel-root": { color: "#94a3b8" },
+              }}
+            />
+            <TextField
+              label="Title"
+              value={deptForm.title}
+              onChange={(e) =>
+                setDeptForm({ ...deptForm, title: e.target.value })
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#475569" },
+                },
+                "& .MuiInputLabel-root": { color: "#94a3b8" },
+              }}
+            />
+            <TextField
+              label="Color (Hex)"
+              value={deptForm.color}
+              onChange={(e) =>
+                setDeptForm({ ...deptForm, color: e.target.value })
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#475569" },
+                },
+                "& .MuiInputLabel-root": { color: "#94a3b8" },
+              }}
+            />
+            <TextField
+              label="Description"
+              value={deptForm.description}
+              multiline
+              rows={3}
+              onChange={(e) =>
+                setDeptForm({ ...deptForm, description: e.target.value })
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#475569" },
+                },
+                "& .MuiInputLabel-root": { color: "#94a3b8" },
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={handleDeptSubmit}
+              size="large"
+              sx={{ background: "linear-gradient(135deg, #f472b6, #db2777)" }}
+            >
+              Save Department
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={cancelDeleteUser}
+        PaperProps={{
+          style: {
+            background: "#0f172a",
+            color: "#e2e8f0",
+            border: "1px solid #ef4444",
+            borderRadius: "16px",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            color: "#ef4444",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <WarningIcon /> Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <b>{userToDelete?.name}</b>? This
+            action is irreversible.
+          </Typography>
+          <Box
+            sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "flex-end" }}
+          >
+            <Button onClick={cancelDeleteUser} sx={{ color: "#94a3b8" }}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={confirmDeleteUser}
+            >
+              Delete
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert Snackbar */}
+      {alertOpen && (
+        <Alert
+          severity="success"
+          onClose={() => setAlertOpen(false)}
+          sx={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999 }}
+        >
+          {alertMessage}
+        </Alert>
       )}
     </Box>
   );

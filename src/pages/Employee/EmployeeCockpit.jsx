@@ -5,6 +5,7 @@ import ActiveProjectTracker from "../../components/dashboard/ActiveProjectTracke
 import ProjectBoard from "../../components/dashboard/ProjectBoard";
 import TaskHistory from "../../components/dashboard/TaskHistory";
 import WorkReportForm from "../../components/dashboard/WorkReportForm";
+import AttendanceWidget from "../../components/AttendanceWidget";
 import axios from "axios";
 
 // Mock Data for Active Project
@@ -109,6 +110,12 @@ const EmployeeCockpit = (props) => {
               <ActiveProjectTracker project={mockActiveProject} />
             </Grid>
             <Grid item xs={12} md={4}>
+              <AttendanceWidget currentUserId={currentUserId} />
+            </Grid>
+          </Grid>
+
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} md={12}>
               <WorkReportForm deptId={deptId} />
             </Grid>
           </Grid>

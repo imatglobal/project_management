@@ -31,13 +31,21 @@ const WorkReportForm = ({ deptId }) => {
     try {
       // Modified endpoint as per requirements: /admin/add_task (modified for reports)
       // Assuming structure matches what the backend expects
-      await axios.post("http://localhost:8080/admin/add_task", {
-        title: "Daily Work Report",
-        desc: report,
-        deptId: deptId,
-        type: "report",
-        date: new Date().toISOString(),
-      });
+      if (report && deptId) {
+        let reportData = {
+          title: "Daily Work Report",
+          desc: report,
+          deptId: deptId,
+          type: "report",
+          date: new Date().toISOString().split("T")[0],
+        };
+
+        await axios.post("http://localhost:8080/admin/Daily_reports", {
+          ...reportData,
+        });
+
+        console.log(reportData);
+      }
       showToast("Report submitted successfully", "success");
       setReport("");
     } catch (error) {
