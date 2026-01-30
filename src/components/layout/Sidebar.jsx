@@ -66,19 +66,38 @@ const Sidebar = () => {
               sx={{
                 mb: 1,
                 borderRadius: "12px",
+                position: "relative",
+                transition: "all 0.3s ease",
                 background: isActive
-                  ? "linear-gradient(90deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 0, 0, 0) 100%)"
+                  ? "linear-gradient(90deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 0, 0, 0) 100%)"
                   : "transparent",
-                borderLeft: isActive
-                  ? "3px solid #00d4ff"
-                  : "3px solid transparent",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  left: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: "4px",
+                  height: isActive ? "24px" : "0px",
+                  backgroundColor: "#00d4ff",
+                  borderRadius: "0 4px 4px 0",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: isActive ? "0 0 10px #00d4ff" : "none",
+                },
                 "&:hover": {
-                  background: "rgba(255, 255, 255, 0.05)",
+                  background: "rgba(255, 255, 255, 0.03)",
+                  transform: "translateX(4px)",
                 },
               }}
             >
               <ListItemIcon
-                sx={{ color: isActive ? "#00d4ff" : "#a0aec0", minWidth: 40 }}
+                sx={{
+                  color: isActive ? "#00d4ff" : "#94a3b8",
+                  minWidth: 42,
+                  display: "flex",
+                  justifyContent: "center",
+                  transition: "color 0.3s ease",
+                }}
               >
                 {item.icon}
               </ListItemIcon>
@@ -87,8 +106,11 @@ const Sidebar = () => {
                 primaryTypographyProps={{
                   fontSize: "0.95rem",
                   fontWeight: isActive ? 600 : 500,
-                  color: isActive ? "#fff" : "#a0aec0",
+                  color: isActive ? "#fff" : "#94a3b8",
+                  letterSpacing: "0.02em",
+                  transition: "color 0.3s ease",
                 }}
+                sx={{ m: 0 }}
               />
             </ListItem>
           );

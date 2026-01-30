@@ -6,6 +6,8 @@ import ProjectBoard from "../../components/dashboard/ProjectBoard";
 import TaskHistory from "../../components/dashboard/TaskHistory";
 import WorkReportForm from "../../components/dashboard/WorkReportForm";
 import AttendanceWidget from "../../components/AttendanceWidget";
+import DeadlineNotifications from "../../components/dashboard/DeadlineNotifications";
+import ProjectsPreview from "../../components/dashboard/ProjectsPreview";
 import axios from "axios";
 
 // Mock Data for Active Project
@@ -103,6 +105,12 @@ const EmployeeCockpit = (props) => {
           <Typography variant="body1" sx={{ mb: 4, color: "#a0aec0" }}>
             Welcome back, Agent. Here is your daily briefing.
           </Typography>
+
+          {/* Deadline Notifications */}
+          <DeadlineNotifications userId={currentUserId} />
+
+          {/* Projects Preview with View/Enroll Options */}
+          <ProjectsPreview userId={currentUserId} maxProjects={3} />
 
           {/* Top Row: Active Project & Quick Reporting */}
           <Grid container spacing={3} sx={{ mb: 4 }}>

@@ -22,6 +22,8 @@ import AdminRoleManager from "./pages/admin-side/AdminRoleManager";
 import Head from "./pages/admin-side/Head";
 import EmployeeLayout from "./components/layout/EmployeeLayout";
 import EmployeeCockpit from "./pages/Employee/EmployeeCockpit";
+import AssignedProjectsList from "./pages/Employee/AssignedProjectsList";
+import ProjectDetailView from "./pages/Employee/ProjectDetailView";
 import Projects from "./pages/Projects";
 import HRDashboard from "./pages/admin-side/HRDashboard";
 
@@ -79,9 +81,18 @@ function App() {
               <Route path="cockpit/:deptId" element={<EmployeeCockpit />} />
             </Route>
 
+            {/* App Routes (Employee-accessible) */}
+            <Route path="/app" element={<EmployeeLayout />}>
+              <Route path="projects" element={<AssignedProjectsList />} />
+              <Route
+                path="projects/:projectId"
+                element={<ProjectDetailView />}
+              />
+            </Route>
+
             <Route path="/admin" element={<AdminRoleManager />} />
             <Route path="/head" element={<Head />} />
-            <Route path="/hr-dashboard" element={<HRDashboard/>}/>
+            <Route path="/hr-dashboard" element={<HRDashboard />} />
             <Route path="/super-admin" element={<SuperAdminPage />} />
             <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
             <Route path="/developer" element={<DeveloperPage />} />
