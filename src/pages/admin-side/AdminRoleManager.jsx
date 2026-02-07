@@ -17,7 +17,12 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const roles = [
-  { title: "Super Admin", level: "Critical", color: "#ff4d4f", route: "/super-admin" },
+  {
+    title: "Super Admin",
+    level: "Critical",
+    color: "#ff4d4f",
+    route: "/super-admin",
+  },
   { title: "HR", level: "High", color: "#00d4ff", route: "/hr-dashboard" },
   { title: "Head", level: "Medium", color: "#4ade80", route: "/head" },
 ];
@@ -30,12 +35,18 @@ const AdminRoleManager = () => {
   const [formData, setFormData] = useState({
     position: "",
     name: "",
+    department: "",
     password: "",
   });
 
   const handleOpen = (role) => {
     setSelectedRole(role);
-    setFormData({ position: role.title, name: "", password: "" });
+    setFormData({
+      position: role.title,
+      name: "",
+      department: "",
+      password: "",
+    });
     setOpen(true);
   };
 
@@ -58,7 +69,7 @@ const AdminRoleManager = () => {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       console.log("Response:", res.data);
@@ -66,10 +77,12 @@ const AdminRoleManager = () => {
       // Check position from response and navigate accordingly
       if (res.data && res.data.position) {
         const position = res.data.position.toLowerCase().trim();
-        
+        let token = res.data.token;
+        localStorage.setItem("token", token);
+
         // Find matching role and navigate to its route
         const matchedRole = roles.find(
-          (role) => role.title.toLowerCase() === position
+          (role) => role.title.toLowerCase() === position,
         );
 
         if (matchedRole) {
@@ -270,7 +283,10 @@ const AdminRoleManager = () => {
               fullWidth
               InputLabelProps={{ sx: { color: "#94a3b8" } }}
               sx={{
-                input: { color: "#e5e7eb", fontSize: { xs: "0.95rem", md: "1rem" } },
+                input: {
+                  color: "#e5e7eb",
+                  fontSize: { xs: "0.95rem", md: "1rem" },
+                },
                 "& .MuiOutlinedInput-root": {
                   borderColor: "#1e293b",
                   "& fieldset": {
@@ -292,7 +308,34 @@ const AdminRoleManager = () => {
               placeholder="Enter full name"
               InputLabelProps={{ sx: { color: "#94a3b8" } }}
               sx={{
-                input: { color: "#e5e7eb", fontSize: { xs: "0.95rem", md: "1rem" } },
+                input: {
+                  color: "#e5e7eb",
+                  fontSize: { xs: "0.95rem", md: "1rem" },
+                },
+                "& .MuiOutlinedInput-root": {
+                  borderColor: "#1e293b",
+                  "& fieldset": {
+                    borderColor: "#1e293b",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: selectedRole?.color,
+                  },
+                },
+              }}
+            />
+            <TextField
+              label="department"
+              name="department"
+              value={formData.department}
+              onChange={handleChange}
+              fullWidth
+              placeholder="Enter department"
+              InputLabelProps={{ sx: { color: "#94a3b8" } }}
+              sx={{
+                input: {
+                  color: "#e5e7eb",
+                  fontSize: { xs: "0.95rem", md: "1rem" },
+                },
                 "& .MuiOutlinedInput-root": {
                   borderColor: "#1e293b",
                   "& fieldset": {
@@ -315,7 +358,10 @@ const AdminRoleManager = () => {
               placeholder="Enter secure password"
               InputLabelProps={{ sx: { color: "#94a3b8" } }}
               sx={{
-                input: { color: "#e5e7eb", fontSize: { xs: "0.95rem", md: "1rem" } },
+                input: {
+                  color: "#e5e7eb",
+                  fontSize: { xs: "0.95rem", md: "1rem" },
+                },
                 "& .MuiOutlinedInput-root": {
                   borderColor: "#1e293b",
                   "& fieldset": {

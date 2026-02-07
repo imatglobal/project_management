@@ -1209,8 +1209,8 @@ const HRDashboard = () => {
                   },
                 }}
               >
-                <MenuItem value="IT">IT Department</MenuItem>
-                <MenuItem value="DM">Digital Marketing</MenuItem>
+                <MenuItem value="IT">IT</MenuItem>
+                <MenuItem value="DM">DM</MenuItem>
               </Select>
             </FormControl>
             {!editingUser && (
