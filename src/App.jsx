@@ -20,6 +20,8 @@ import DepartmentGateway from "./pages/Dashboard/DepartmentGateway";
 // import DepartmentDashboard from "./pages/Dashboard/DepartmentDashboard";
 import AdminRoleManager from "./pages/admin-side/AdminRoleManager";
 import Head from "./pages/admin-side/Head";
+import HeadProjectView from "./pages/admin-side/HeadProjectView";
+
 import EmployeeLayout from "./components/layout/EmployeeLayout";
 import EmployeeCockpit from "./pages/Employee/EmployeeCockpit";
 import AssignedProjectsList from "./pages/Employee/AssignedProjectsList";
@@ -92,6 +94,8 @@ function App() {
 
             <Route path="/admin" element={<AdminRoleManager />} />
             <Route path="/head" element={<Head />} />
+            <Route path="/head/projects" element={<HeadProjectView />} />
+
             <Route path="/hr-dashboard" element={<HRDashboard />} />
             <Route path="/super-admin" element={<SuperAdminPage />} />
             <Route path="/admin-dashboard" element={<AdminDashboardPage />} />

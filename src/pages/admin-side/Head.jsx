@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   Box,
   Card,
@@ -27,10 +29,14 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import FolderIcon from "@mui/icons-material/Folder";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+
 import axios from "axios";
 import CreateProjectDialog from "../../components/CreateProjectDialog";
 
 const Head = () => {
+  const navigate = useNavigate();
+
   // Sample tasks data
   const [tasks, setTasks] = useState([
     {
@@ -411,6 +417,30 @@ const Head = () => {
           }}
         >
           Create Project
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<AssessmentIcon />}
+          onClick={() => navigate("/head/projects")}
+          sx={{
+            background: "linear-gradient(135deg, #b721ff, #7f00ff)",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: { xs: "0.9rem", md: "1rem" },
+            textTransform: "uppercase",
+            letterSpacing: 1,
+            py: { xs: 1.2, md: 1.5 },
+            px: { xs: 2, md: 3 },
+            borderRadius: 2,
+            transition: "all 0.3s ease",
+            "&:hover": {
+              background: "linear-gradient(135deg, #a61ef0, #6e00f0)",
+              transform: "translateY(-2px)",
+              boxShadow: "0 8px 25px #b721ff40",
+            },
+          }}
+        >
+          View Projects
         </Button>
       </Box>
 
