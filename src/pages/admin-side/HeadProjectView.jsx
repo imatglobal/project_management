@@ -51,6 +51,7 @@ const HeadProjectView = () => {
             },
           },
         );
+        console.log(response.data);
         setProjectsList(response.data);
       } catch (error) {
         console.error("Error fetching projects:", error);
@@ -260,7 +261,7 @@ const HeadProjectView = () => {
             const statusColor = getStatusColor(project.status || "Active");
 
             return (
-              <Grid item xs={12} md={6} lg={4} key={project._id}>
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={project._id}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -466,7 +467,7 @@ const HeadProjectView = () => {
 
                       {/* Metadata Grid */}
                       <Grid container spacing={2} sx={{ mb: 4 }}>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Box
                             sx={{
                               borderLeft: `2px solid ${getPriorityColor(project.priority)}`,
@@ -491,7 +492,7 @@ const HeadProjectView = () => {
                             </Typography>
                           </Box>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Box
                             sx={{
                               borderLeft: "2px solid rgba(148, 163, 184, 0.2)",

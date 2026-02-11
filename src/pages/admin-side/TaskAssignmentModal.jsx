@@ -20,6 +20,7 @@ import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PersonIcon from "@mui/icons-material/Person";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import SendIcon from "@mui/icons-material/Send";
+import axios from "axios";
 
 const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
   const [unassignedTasks, setUnassignedTasks] = useState([]);
@@ -30,12 +31,18 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
       // Initialize state from props
       setUnassignedTasks(projectData.todos || []);
 
-      // Initialize specialists with empty tasks array
+      // Initialize specialists with consistent IDs and empty tasks
       const initialSpecialists = (projectData.teamMembers || []).map(
-        (member) => ({
-          ...member,
-          assignedTasks: [],
-        }),
+        (member, index) => {
+          const stableId = String(
+            member.userId || member._id || `temp-id-${index}-${member.name}`,
+          );
+          return {
+            ...member,
+            stableId, // Add a guaranteed unique ID
+            assignedTasks: [],
+          };
+        },
       );
       setSpecialists(initialSpecialists);
     }
@@ -45,6 +52,11 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
     const { source, destination } = result;
 
     if (!destination) return;
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    )
+      return;
 
     // Moving from Unassigned to a Specialist
     if (
@@ -52,7 +64,9 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
       destination.droppableId.startsWith("specialist-")
     ) {
       const task = unassignedTasks[source.index];
-      const specialistId = destination.droppableId.replace("specialist-", "");
+      const specialistId = String(
+        destination.droppableId.replace("specialist-", ""),
+      );
 
       // Remove from unassigned
       const newUnassigned = Array.from(unassignedTasks);
@@ -62,7 +76,7 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
       // Add to specialist
       setSpecialists((prev) =>
         prev.map((s) => {
-          if (s.userId === specialistId || s._id === specialistId) {
+          if (s.stableId === specialistId) {
             return {
               ...s,
               assignedTasks: [...s.assignedTasks, task],
@@ -78,34 +92,31 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
       source.droppableId.startsWith("specialist-") &&
       destination.droppableId.startsWith("specialist-")
     ) {
-      const sourceId = source.droppableId.replace("specialist-", "");
-      const destId = destination.droppableId.replace("specialist-", "");
+      const sourceId = String(source.droppableId.replace("specialist-", ""));
+      const destId = String(destination.droppableId.replace("specialist-", ""));
 
-      let taskToMove;
-
-      // Remove from source specialist
-      const tempSpecialists = specialists.map((s) => {
-        const id = s.userId || s._id;
-        if (id === sourceId) {
-          const newTasks = Array.from(s.assignedTasks);
-          [taskToMove] = newTasks.splice(source.index, 1);
-          return { ...s, assignedTasks: newTasks };
-        }
-        return s;
-      });
-
-      // Add to destination specialist
-      setSpecialists(
-        tempSpecialists.map((s) => {
-          const id = s.userId || s._id;
-          if (id === destId) {
+      setSpecialists((prevList) => {
+        let movedItem;
+        const newSpecialists = prevList.map((s) => {
+          if (s.stableId === sourceId) {
             const newTasks = Array.from(s.assignedTasks);
-            newTasks.splice(destination.index, 0, taskToMove);
+            [movedItem] = newTasks.splice(source.index, 1);
             return { ...s, assignedTasks: newTasks };
           }
           return s;
-        }),
-      );
+        });
+
+        if (!movedItem) return prevList;
+
+        return newSpecialists.map((s) => {
+          if (s.stableId === destId) {
+            const newTasks = Array.from(s.assignedTasks);
+            newTasks.splice(destination.index, 0, movedItem);
+            return { ...s, assignedTasks: newTasks };
+          }
+          return s;
+        });
+      });
     }
 
     // Moving from Specialist back to Unassigned
@@ -113,13 +124,12 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
       source.droppableId.startsWith("specialist-") &&
       destination.droppableId === "unassigned"
     ) {
-      const sourceId = source.droppableId.replace("specialist-", "");
+      const sourceId = String(source.droppableId.replace("specialist-", ""));
       let taskToMove;
 
       setSpecialists((prev) =>
         prev.map((s) => {
-          const id = s.userId || s._id;
-          if (id === sourceId) {
+          if (s.stableId === sourceId) {
             const newTasks = Array.from(s.assignedTasks);
             [taskToMove] = newTasks.splice(source.index, 1);
             return { ...s, assignedTasks: newTasks };
@@ -128,28 +138,48 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
         }),
       );
 
-      const newUnassigned = Array.from(unassignedTasks);
-      newUnassigned.splice(destination.index, 0, taskToMove);
-      setUnassignedTasks(newUnassigned);
+      if (taskToMove) {
+        const newUnassigned = Array.from(unassignedTasks);
+        newUnassigned.splice(destination.index, 0, taskToMove);
+        setUnassignedTasks(newUnassigned);
+      }
     }
   };
 
-  const handleSave = () => {
-    // Format data as requested: { employee: _id, tasks: [...] }
-    const submissionData = specialists
-      .map((s) => ({
-        employee: s.userId || s._id,
-        tasks: s.assignedTasks.map((t) => ({
-          title: t.title,
-          priority: t.priority,
-          status: t.status || "pending",
-        })),
-      }))
-      .filter((entry) => entry.tasks.length > 0);
+  const handleSave = async () => {
+    try {
+      // Format data as requested: { employee: _id, tasks: [...] }
+      const submissionData = {
+        projectId: projectData._id,
+        headId: projectData.head_id,
+        employeeTasks: specialists
+          .filter((s) => s.assignedTasks.length > 0)
+          .flatMap((s) =>
+            s.assignedTasks.map((t) => ({
+              employee: s.userId || s._id || s.stableId,
+              tasks: {
+                task_id: t._id,
+                title: t.title,
+                priority: t.priority,
+                duedate: t.dueDate || t.duedate,
+                status: t.status || "pending",
+              },
+            })),
+          ),
+      };
 
-    console.log("Submitting Assignments to Backend:", submissionData);
-    if (onSave) onSave(submissionData);
-    onClose();
+      console.log("Submitting Assignments to Backend:", submissionData);
+      const res = await axios.post(
+        "http://localhost:8080/admin/assigned_tasks",
+        submissionData,
+      );
+      if (onSave) onSave(submissionData);
+      onClose();
+    } catch (error) {
+      console.error("Error submitting assignments:", error);
+      // Optional: Add some user feedback here if needed
+      // But ensure we can still close if necessary or at least log the failure
+    }
   };
 
   if (!projectData) return null;
@@ -158,6 +188,7 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
     <Dialog
       open={open}
       onClose={onClose}
+      disableEnforceFocus // Resolves aria-hidden and focus lock issues when using Portals for DnD
       maxWidth="lg"
       fullWidth
       PaperProps={{
@@ -167,6 +198,7 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
           border: "1px solid rgba(56, 189, 248, 0.2)",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
           minHeight: "80vh",
+          overflow: "hidden", // Ensure the main container doesn't have double scroll
         },
       }}
     >
@@ -214,7 +246,7 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 4 }}>
+      <DialogContent sx={{ p: 4, overflow: "visible" }}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Box
             sx={{
@@ -314,6 +346,23 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
                                       : "#94a3b8",
                                 }}
                               />
+                              {(task.dueDate || task.duedate) && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: "#64748b",
+                                    display: "block",
+                                    mt: 1.5,
+                                    fontSize: "0.65rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Due:{" "}
+                                  {new Date(
+                                    task.dueDate || task.duedate,
+                                  ).toLocaleDateString()}
+                                </Typography>
+                              )}
                             </Paper>
                           );
 
@@ -353,145 +402,177 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
 
               <Box
                 sx={{
-                  display: "flex",
-                  gap: 3,
-                  overflowX: "auto",
-                  pb: 2,
-                  "&::-webkit-scrollbar": { height: 6 },
+                  maxHeight: "65vh",
+                  overflowY: "auto",
+                  pr: 1,
+                  "&::-webkit-scrollbar": { width: 6 },
                   "&::-webkit-scrollbar-thumb": {
                     bgcolor: "rgba(255,255,255,0.1)",
                     borderRadius: 3,
                   },
                 }}
               >
-                {specialists.map((specialist) => (
-                  <Box
-                    key={specialist.userId || specialist._id}
-                    sx={{ minWidth: 280, width: 280 }}
-                  >
-                    <Droppable
-                      droppableId={`specialist-${specialist.userId || specialist._id}`}
-                    >
-                      {(provided, snapshot) => (
-                        <Box
-                          {...provided.droppableProps}
-                          ref={provided.innerRef}
-                          sx={{
-                            bgcolor: snapshot.isDraggingOver
-                              ? "rgba(74, 222, 128, 0.05)"
-                              : "rgba(15, 23, 42, 0.4)",
-                            borderRadius: 4,
-                            p: 2,
-                            minHeight: "50vh",
-                            border: `2px dashed ${snapshot.isDraggingOver ? "#4ade80" : "rgba(255, 255, 255, 0.05)"}`,
-                            transition: "all 0.3s ease",
-                          }}
-                        >
-                          {/* Specialist Header */}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(2, 1fr)",
+                      lg: "repeat(3, 1fr)",
+                    },
+                    gap: 3,
+                    pb: 2,
+                  }}
+                >
+                  {specialists.map((specialist) => (
+                    <Box key={specialist.stableId} sx={{ width: "100%" }}>
+                      <Droppable
+                        droppableId={`specialist-${specialist.stableId}`}
+                      >
+                        {(provided, snapshot) => (
                           <Box
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
                             sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1.5,
-                              mb: 3,
+                              bgcolor: snapshot.isDraggingOver
+                                ? "rgba(74, 222, 128, 0.05)"
+                                : "rgba(15, 23, 42, 0.4)",
+                              borderRadius: 4,
+                              p: 2,
+                              minHeight: "50vh",
+                              border: `2px dashed ${snapshot.isDraggingOver ? "#4ade80" : "rgba(255, 255, 255, 0.05)"}`,
+                              transition: "all 0.3s ease",
                             }}
                           >
-                            <Avatar
+                            {/* Specialist Header */}
+                            <Box
                               sx={{
-                                width: 32,
-                                height: 32,
-                                bgcolor: "#1e293b",
-                                color: "#4ade80",
-                                border: "1px solid rgba(74, 222, 128, 0.3)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                mb: 3,
                               }}
                             >
-                              {specialist.name?.charAt(0)}
-                            </Avatar>
-                            <Box>
-                              <Typography
-                                variant="subtitle2"
-                                sx={{ color: "#f1f5f9", fontWeight: 700 }}
-                              >
-                                {specialist.name}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                sx={{ color: "#64748b" }}
-                              >
-                                {specialist.role || "Specialist"}
-                              </Typography>
-                            </Box>
-                          </Box>
-
-                          {/* Assigned Tasks */}
-                          {specialist.assignedTasks.map((task, index) => (
-                            <Draggable
-                              key={task._id || `task-${index}`}
-                              draggableId={`assigned-${task._id || index}`}
-                              index={index}
-                            >
-                              {(provided, snapshot) => {
-                                const child = (
-                                  <Paper
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    sx={{
-                                      p: 1.5,
-                                      mb: 1.5,
-                                      background: snapshot.isDragging
-                                        ? "rgba(74, 222, 128, 0.3)"
-                                        : "rgba(74, 222, 128, 0.03)",
-                                      border: `1px solid ${snapshot.isDragging ? "#4ade80" : "rgba(74, 222, 128, 0.2)"}`,
-                                      borderRadius: 3,
-                                      boxShadow: snapshot.isDragging
-                                        ? "0 10px 30px rgba(0, 0, 0, 0.4)"
-                                        : "none",
-                                      width: snapshot.isDragging
-                                        ? "240px"
-                                        : "auto", // Stable width
-                                      zIndex: 9999,
-                                    }}
-                                  >
-                                    <Typography
-                                      variant="body2"
-                                      sx={{ color: "#f1f5f9", fontWeight: 600 }}
-                                    >
-                                      {task.title}
-                                    </Typography>
-                                  </Paper>
-                                );
-
-                                if (snapshot.isDragging) {
-                                  return ReactDOM.createPortal(
-                                    child,
-                                    document.body,
-                                  );
-                                }
-                                return child;
-                              }}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                          {specialist.assignedTasks.length === 0 &&
-                            !snapshot.isDraggingOver && (
-                              <Typography
-                                variant="caption"
+                              <Avatar
                                 sx={{
-                                  color: "#64748b",
-                                  display: "block",
-                                  textAlign: "center",
-                                  mt: 4,
+                                  width: 32,
+                                  height: 32,
+                                  bgcolor: "#1e293b",
+                                  color: "#4ade80",
+                                  border: "1px solid rgba(74, 222, 128, 0.3)",
                                 }}
                               >
-                                Drop tasks here
-                              </Typography>
-                            )}
-                        </Box>
-                      )}
-                    </Droppable>
-                  </Box>
-                ))}
+                                {specialist.name?.charAt(0)}
+                              </Avatar>
+                              <Box>
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ color: "#f1f5f9", fontWeight: 700 }}
+                                >
+                                  {specialist.name}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: "#64748b" }}
+                                >
+                                  {specialist.role || "Specialist"}
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            {/* Assigned Tasks */}
+                            {specialist.assignedTasks.map((task, index) => (
+                              <Draggable
+                                key={
+                                  task._id ||
+                                  `task-${specialist.stableId}-${index}`
+                                }
+                                draggableId={`assigned-${specialist.stableId}-${task._id || index}`}
+                                index={index}
+                              >
+                                {(provided, snapshot) => {
+                                  const child = (
+                                    <Paper
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      sx={{
+                                        p: 1.5,
+                                        mb: 1.5,
+                                        background: snapshot.isDragging
+                                          ? "rgba(74, 222, 128, 0.3)"
+                                          : "rgba(74, 222, 128, 0.03)",
+                                        border: `1px solid ${snapshot.isDragging ? "#4ade80" : "rgba(74, 222, 128, 0.2)"}`,
+                                        borderRadius: 3,
+                                        boxShadow: snapshot.isDragging
+                                          ? "0 10px 30px rgba(0, 0, 0, 0.4)"
+                                          : "none",
+                                        width: snapshot.isDragging
+                                          ? "240px"
+                                          : "auto", // Stable width
+                                        zIndex: 9999,
+                                      }}
+                                    >
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          color: "#f1f5f9",
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        {task.title}
+                                      </Typography>
+                                      {(task.dueDate || task.duedate) && (
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            color: "rgba(74, 222, 128, 0.5)",
+                                            display: "block",
+                                            mt: 1,
+                                            fontSize: "0.6rem",
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          Due:{" "}
+                                          {new Date(
+                                            task.dueDate || task.duedate,
+                                          ).toLocaleDateString()}
+                                        </Typography>
+                                      )}
+                                    </Paper>
+                                  );
+
+                                  if (snapshot.isDragging) {
+                                    return ReactDOM.createPortal(
+                                      child,
+                                      document.body,
+                                    );
+                                  }
+                                  return child;
+                                }}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                            {specialist.assignedTasks.length === 0 &&
+                              !snapshot.isDraggingOver && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: "#64748b",
+                                    display: "block",
+                                    textAlign: "center",
+                                    mt: 4,
+                                  }}
+                                >
+                                  Drop tasks here
+                                </Typography>
+                              )}
+                          </Box>
+                        )}
+                      </Droppable>
+                    </Box>
+                  ))}
+                </Box>
               </Box>
             </Box>
           </Box>
