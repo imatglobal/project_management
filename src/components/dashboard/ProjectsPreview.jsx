@@ -7,8 +7,9 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import FolderIcon from "@mui/icons-material/Folder";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import axios from "axios";
 
-const ProjectsPreview = ({ userId, maxProjects = 3 }) => {
+const ProjectsPreview = ({ userId }) => {
   const [projects, setProjects] = useState([]);
   const navigate = useNavigate();
 
@@ -18,6 +19,17 @@ const ProjectsPreview = ({ userId, maxProjects = 3 }) => {
         // TODO: Replace with actual API call
         // const res = await axios.get(`/api/projects/assigned?userId=${userId}&limit=${maxProjects}`);
         // setProjects(res.data);
+        axios
+          .get("http://localhost:8080/employee_included_proj", {
+            headers: {
+              Authorization: `${userId}`,
+              "Content-Type": "application/json",
+            },
+          })
+          .then((res) => {
+            console.log(res.data);
+            setProjects(res.data);
+          });
 
         // Mock data
         const mockProjects = [
@@ -46,15 +58,13 @@ const ProjectsPreview = ({ userId, maxProjects = 3 }) => {
             priority: "Medium",
           },
         ];
-
-        setProjects(mockProjects.slice(0, maxProjects));
       } catch (error) {
         console.error("Error fetching projects:", error);
       }
     };
 
     fetchProjects();
-  }, [userId, maxProjects]);
+  }, [userId]);
 
   const handleEnroll = async (projectId) => {
     try {
@@ -262,7 +272,7 @@ const ProjectsPreview = ({ userId, maxProjects = 3 }) => {
                       >
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${project.progress}%` }}
+                          animate={{ width: `${project.description}%` }}
                           transition={{ duration: 1.5, ease: "easeOut" }}
                           style={{
                             height: "100%",

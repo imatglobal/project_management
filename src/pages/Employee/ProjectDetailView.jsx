@@ -24,100 +24,68 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FlagIcon from "@mui/icons-material/Flag";
 import PersonIcon from "@mui/icons-material/Person";
+import axios from "axios";
 
 const ProjectDetailView = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  console.log(projectId);
+  let token = localStorage.getItem("token");
   useEffect(() => {
     const fetchProjectDetails = async () => {
       try {
-        // TODO: Replace with actual API call
-        // const res = await axios.get(`/api/projects/${projectId}/details`);
-        // setProject(res.data);
-
-        // Mock data
-        const mockProject = {
-          _id: projectId,
-          title: "AI-Powered Analytics Engine",
-          description:
-            "Developing predictive analysis models for user behavior tracking using Python and TensorFlow. This project aims to revolutionize how we understand user interactions.",
-          deadline: "2026-02-05",
-          progress: 78,
-          priority: "High",
-          todos: [
-            {
-              _id: "t1",
-              title: "Setup TensorFlow environment and dependencies",
-              status: "completed",
-              priority: "High",
-              assignedTo: "John Doe",
-              dueDate: "2026-01-15",
-            },
-            {
-              _id: "t2",
-              title: "Design data preprocessing pipeline",
-              status: "completed",
-              priority: "Critical",
-              assignedTo: "Jane Smith",
-              dueDate: "2026-01-20",
-            },
-            {
-              _id: "t3",
-              title: "Implement neural network architecture",
-              status: "in_progress",
-              priority: "Critical",
-              assignedTo: "You",
-              dueDate: "2026-01-28",
-            },
-            {
-              _id: "t4",
-              title: "Train model with historical data",
-              status: "in_progress",
-              priority: "High",
-              assignedTo: "Mike Johnson",
-              dueDate: "2026-02-01",
-            },
-            {
-              _id: "t5",
-              title: "Optimize model performance",
-              status: "pending",
-              priority: "Medium",
-              assignedTo: "Sarah Williams",
-              dueDate: "2026-02-03",
-            },
-            {
-              _id: "t6",
-              title: "Deploy to production environment",
-              status: "pending",
-              priority: "High",
-              assignedTo: "Unassigned",
-              dueDate: "2026-02-05",
-            },
-          ],
-          teamMembers: [
-            { userId: "u1", name: "John Doe", role: "ML Engineer" },
-            { userId: "u2", name: "Jane Smith", role: "Data Scientist" },
-            { userId: "u3", name: "You", role: "Backend Developer" },
-            { userId: "u4", name: "Mike Johnson", role: "DevOps Engineer" },
-            { userId: "u5", name: "Sarah Williams", role: "QA Engineer" },
-          ],
+        setLoading(true);
+        const headers = {
+          Authorization: `${token}`,
+          "Content-Type": "application/json",
         };
 
+        // Fetch both project details and specific tasks for this employee
+        const [projectsRes, tasksRes] = await Promise.all([
+          axios.get("http://localhost:8080/employee_included_proj", {
+            headers,
+          }),
+          axios.get(`http://localhost:8080/emp_proj-tasks/${projectId}`, {
+            headers,
+          }),
+        ]);
+
+        // Find the specific project this page is for
+        const projectMetadata = projectsRes.data.find(
+          (p) => p._id === projectId,
+        );
+
+        if (projectMetadata) {
+          // Flatten the aggregated tasks from backend
+          // Structure: [{ employeeTasks: { tasks: { ... } } }, ...]
+          const normalizedTasks = tasksRes.data.map((item) => ({
+            _id: item.employeeTasks.tasks.task_id,
+            ...item.employeeTasks.tasks,
+          }));
+
+          setProject({
+            ...projectMetadata,
+            todos: normalizedTasks,
+          });
+        } else {
+          setProject(null);
+        }
+
         setTimeout(() => {
-          setProject(mockProject);
           setLoading(false);
-        }, 800);
+        }, 600);
       } catch (error) {
         console.error("Error fetching project details:", error);
         setLoading(false);
       }
     };
 
-    fetchProjectDetails();
-  }, [projectId]);
+    if (token && projectId) {
+      fetchProjectDetails();
+    }
+  }, [projectId, token]);
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -186,11 +154,12 @@ const ProjectDetailView = () => {
     );
   }
 
-  const completedTodos = project.todos.filter(
-    (t) => t.status === "completed",
-  ).length;
-  const totalTodos = project.todos.length;
-  const calculatedProgress = Math.round((completedTodos / totalTodos) * 100);
+  const completedTodos = project.todos
+    ? project.todos.filter((t) => t.status === "completed").length
+    : 0;
+  const totalTodos = project.todos ? project.todos.length : 0;
+  const calculatedProgress =
+    totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
   const daysRemaining = getDaysRemaining(project.deadline);
   const isUrgent = daysRemaining <= 7;
 
@@ -209,7 +178,7 @@ const ProjectDetailView = () => {
               fontWeight: 600,
               "&:hover": {
                 color: "#00d4ff",
-                bgcolor: "rgba(0, 212, 255, 0.1)",
+                bgcolor: "rgba(11, 28, 32, 0.1)",
               },
             }}
           >
@@ -437,17 +406,19 @@ const ProjectDetailView = () => {
                     },
                   }}
                 >
-                  {project.teamMembers.map((member) => (
-                    <Avatar
-                      key={member.userId}
-                      sx={{
-                        bgcolor: getPriorityColor(project.priority),
-                        border: "2px solid rgba(20, 25, 40, 0.9)",
-                      }}
-                    >
-                      {member.name.charAt(0)}
-                    </Avatar>
-                  ))}
+                  {project.teamMembers &&
+                    project.teamMembers.map((member) => (
+                      <Avatar
+                        key={member.userId}
+                        sx={{
+                          bgcolor: getPriorityColor(project.priority),
+                          border: "2px solid rgba(20, 25, 40, 0.9)",
+                          fontSize: "0.8rem",
+                        }}
+                      >
+                        {member.name.charAt(0)}
+                      </Avatar>
+                    ))}
                 </AvatarGroup>
               </Box>
             </Box>
@@ -478,151 +449,155 @@ const ProjectDetailView = () => {
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <AnimatePresence>
-                {project.todos.map((todo, index) => (
-                  <motion.div
-                    key={todo._id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Box
-                      sx={{
-                        p: 2.5,
-                        borderRadius: "16px",
-                        background:
-                          todo.status === "completed"
-                            ? "rgba(0, 230, 118, 0.05)"
-                            : "rgba(255, 255, 255, 0.02)",
-                        border: `1px solid ${
-                          todo.status === "completed"
-                            ? "rgba(0, 230, 118, 0.2)"
-                            : "rgba(255, 255, 255, 0.05)"
-                        }`,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2,
-                        transition: "all 0.3s ease",
-                        "&:hover": {
+                {project.todos &&
+                  project.todos.map((todo, index) => (
+                    <motion.div
+                      key={todo._id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Box
+                        sx={{
+                          p: 2.5,
+                          borderRadius: "16px",
                           background:
                             todo.status === "completed"
-                              ? "rgba(0, 230, 118, 0.08)"
-                              : "rgba(255, 255, 255, 0.04)",
-                          transform: "translateX(4px)",
-                        },
-                      }}
-                    >
-                      {/* Checkbox */}
-                      <Checkbox
-                        checked={todo.status === "completed"}
-                        onChange={() => handleToggleTodo(todo._id)}
-                        icon={<RadioButtonUncheckedIcon />}
-                        checkedIcon={<CheckCircleIcon />}
-                        sx={{
-                          color: "#718096",
-                          "&.Mui-checked": {
-                            color: "#00e676",
+                              ? "rgba(0, 230, 118, 0.05)"
+                              : "rgba(255, 255, 255, 0.02)",
+                          border: `1px solid ${
+                            todo.status === "completed"
+                              ? "rgba(0, 230, 118, 0.2)"
+                              : "rgba(255, 255, 255, 0.05)"
+                          }`,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            background:
+                              todo.status === "completed"
+                                ? "rgba(0, 230, 118, 0.08)"
+                                : "rgba(255, 255, 255, 0.04)",
+                            transform: "translateX(4px)",
                           },
                         }}
-                      />
+                      >
+                        {/* Checkbox */}
+                        <Checkbox
+                          checked={todo.status === "completed"}
+                          onChange={() => handleToggleTodo(todo._id)}
+                          icon={<RadioButtonUncheckedIcon />}
+                          checkedIcon={<CheckCircleIcon />}
+                          sx={{
+                            color: "#718096",
+                            "&.Mui-checked": {
+                              color: "#00e676",
+                            },
+                          }}
+                        />
 
-                      {/* Task Info */}
-                      <Box sx={{ flex: 1 }}>
-                        <Typography
-                          variant="body1"
-                          sx={{
-                            fontWeight: 600,
-                            color:
-                              todo.status === "completed" ? "#a0aec0" : "#fff",
-                            textDecoration:
-                              todo.status === "completed"
-                                ? "line-through"
-                                : "none",
-                            mb: 0.5,
-                          }}
-                        >
-                          {todo.title}
-                        </Typography>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 2,
-                            flexWrap: "wrap",
-                          }}
-                        >
+                        {/* Task Info */}
+                        <Box sx={{ flex: 1 }}>
+                          <Typography
+                            variant="body1"
+                            sx={{
+                              fontWeight: 600,
+                              color:
+                                todo.status === "completed"
+                                  ? "#a0aec0"
+                                  : "#fff",
+                              textDecoration:
+                                todo.status === "completed"
+                                  ? "line-through"
+                                  : "none",
+                              mb: 0.5,
+                            }}
+                          >
+                            {todo.title}
+                          </Typography>
                           <Box
                             sx={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 0.5,
+                              gap: 2,
+                              flexWrap: "wrap",
                             }}
                           >
-                            <PersonIcon
-                              sx={{ fontSize: 14, color: "#718096" }}
-                            />
-                            <Typography
-                              variant="caption"
-                              sx={{ color: "#718096" }}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.5,
+                              }}
                             >
-                              {todo.assignedTo}
-                            </Typography>
-                          </Box>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <AccessTimeIcon
-                              sx={{ fontSize: 14, color: "#718096" }}
-                            />
-                            <Typography
-                              variant="caption"
-                              sx={{ color: "#718096" }}
+                              <PersonIcon
+                                sx={{ fontSize: 14, color: "#718096" }}
+                              />
+                              <Typography
+                                variant="caption"
+                                sx={{ color: "#718096" }}
+                              >
+                                Assigned:{" "}
+                                {todo.employee === "You" ? "You" : "Assigned"}
+                              </Typography>
+                            </Box>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.5,
+                              }}
                             >
-                              Due:{" "}
-                              {new Date(todo.dueDate).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                },
-                              )}
-                            </Typography>
+                              <AccessTimeIcon
+                                sx={{ fontSize: 14, color: "#718096" }}
+                              />
+                              <Typography
+                                variant="caption"
+                                sx={{ color: "#718096" }}
+                              >
+                                Due:{" "}
+                                {new Date(todo.duedate).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )}
+                              </Typography>
+                            </Box>
                           </Box>
                         </Box>
-                      </Box>
 
-                      {/* Priority & Status */}
-                      <Box
-                        sx={{ display: "flex", gap: 1, alignItems: "center" }}
-                      >
-                        <Chip
-                          label={todo.priority}
-                          size="small"
-                          sx={{
-                            bgcolor: `${getPriorityColor(todo.priority)}15`,
-                            color: getPriorityColor(todo.priority),
-                            fontWeight: 600,
-                            fontSize: "0.7rem",
-                            border: `1px solid ${getPriorityColor(todo.priority)}30`,
-                          }}
-                        />
+                        {/* Priority & Status */}
                         <Box
-                          sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            bgcolor: getStatusColor(todo.status),
-                            boxShadow: `0 0 8px ${getStatusColor(todo.status)}`,
-                          }}
-                        />
+                          sx={{ display: "flex", gap: 1, alignItems: "center" }}
+                        >
+                          <Chip
+                            label={todo.priority}
+                            size="small"
+                            sx={{
+                              bgcolor: `${getPriorityColor(todo.priority)}15`,
+                              color: getPriorityColor(todo.priority),
+                              fontWeight: 600,
+                              fontSize: "0.7rem",
+                              border: `1px solid ${getPriorityColor(todo.priority)}30`,
+                            }}
+                          />
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              bgcolor: getStatusColor(todo.status),
+                              boxShadow: `0 0 8px ${getStatusColor(todo.status)}`,
+                            }}
+                          />
+                        </Box>
                       </Box>
-                    </Box>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  ))}
               </AnimatePresence>
             </Box>
           </Paper>

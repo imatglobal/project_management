@@ -26,26 +26,75 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
   const [unassignedTasks, setUnassignedTasks] = useState([]);
   const [specialists, setSpecialists] = useState([]);
 
-  useEffect(() => {
-    if (open && projectData) {
-      // Initialize state from props
-      setUnassignedTasks(projectData.todos || []);
+  const [isUpdate, setIsUpdate] = useState(false);
 
-      // Initialize specialists with consistent IDs and empty tasks
-      const initialSpecialists = (projectData.teamMembers || []).map(
-        (member, index) => {
-          const stableId = String(
-            member.userId || member._id || `temp-id-${index}-${member.name}`,
+  useEffect(() => {
+    const fetchExistingAssignments = async () => {
+      if (open && projectData?._id) {
+        try {
+          // 1. Initialize Default State
+          const initialSpecialists = (projectData.teamMembers || []).map(
+            (member, index) => ({
+              ...member,
+              stableId: String(
+                member.userId || member._id || `temp-id-${index}`,
+              ),
+              assignedTasks: [],
+            }),
           );
-          return {
-            ...member,
-            stableId, // Add a guaranteed unique ID
-            assignedTasks: [],
-          };
-        },
-      );
-      setSpecialists(initialSpecialists);
-    }
+
+          // 2. Fetch Existing Data from DB
+          let id = projectData._id;
+          const response = await axios.get(
+            `http://localhost:8080/admin/check_assigned_tasks/${id}`,
+          );
+          const existingData = response.data;
+
+          if (existingData && existingData.employeeTasks) {
+            setIsUpdate(true); // Data exists, use PUT for updates
+            const dbTasks = existingData.employeeTasks;
+
+            // 3. Hydrate Specialists
+            const hydratedSpecialists = initialSpecialists.map((s) => {
+              // Find all tasks assigned to this specialist in the DB array
+              const matchingTasks = dbTasks
+                .filter((item) => item.employee === s.stableId)
+                .map((item) => item.tasks);
+              return { ...s, assignedTasks: matchingTasks };
+            });
+            setSpecialists(hydratedSpecialists);
+
+            // 4. Filter Backlog (Todos - Assigned)
+            const assignedTaskTitles = dbTasks.map((item) => item.tasks.title);
+            const filteredBacklog = (projectData.todos || []).filter(
+              (todo) => !assignedTaskTitles.includes(todo.title),
+            );
+            setUnassignedTasks(filteredBacklog);
+          } else {
+            setIsUpdate(false);
+            // No existing data, use default initialization
+            setSpecialists(initialSpecialists);
+            setUnassignedTasks(projectData.todos || []);
+          }
+        } catch (error) {
+          console.error("Error fetching assignments:", error);
+          setIsUpdate(false);
+          // Fallback to default state on error
+          setUnassignedTasks(projectData.todos || []);
+          setSpecialists(
+            (projectData.teamMembers || []).map((member, index) => ({
+              ...member,
+              stableId: String(
+                member.userId || member._id || `temp-id-${index}`,
+              ),
+              assignedTasks: [],
+            })),
+          );
+        }
+      }
+    };
+
+    fetchExistingAssignments();
   }, [open, projectData]);
 
   const onDragEnd = (result) => {
@@ -168,17 +217,26 @@ const TaskAssignmentModal = ({ open, onClose, projectData, onSave }) => {
           ),
       };
 
-      console.log("Submitting Assignments to Backend:", submissionData);
-      const res = await axios.post(
-        "http://localhost:8080/admin/assigned_tasks",
-        submissionData,
-      );
+      if (isUpdate) {
+        console.log("Updating Assignments (PUT):", submissionData);
+        let id = projectData._id;
+        await axios.put(
+          `http://localhost:8080/admin/assigned_tasks/${id}`,
+          submissionData,
+        );
+      } else {
+        console.log("Creating Assignments (POST):", submissionData);
+        await axios.post(
+          "http://localhost:8080/admin/assigned_tasks",
+          submissionData,
+        );
+        setIsUpdate(true);
+      }
+
       if (onSave) onSave(submissionData);
       onClose();
     } catch (error) {
       console.error("Error submitting assignments:", error);
-      // Optional: Add some user feedback here if needed
-      // But ensure we can still close if necessary or at least log the failure
     }
   };
 

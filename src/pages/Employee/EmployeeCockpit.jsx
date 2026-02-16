@@ -28,7 +28,7 @@ const EmployeeCockpit = (props) => {
   const [loading, setLoading] = useState(true);
 
   // Mock User ID for role logic (In real app, get from Auth Context)
-  const currentUserId = "user_123";
+  const currentUserId = localStorage.getItem("token");
 
   useEffect(() => {
     const fetchTasks = async () => {
