@@ -13,6 +13,8 @@ import {
   Fade,
   Skeleton,
   Button,
+  TextField,
+  Collapse,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
@@ -24,6 +26,11 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FlagIcon from "@mui/icons-material/Flag";
 import PersonIcon from "@mui/icons-material/Person";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
 import axios from "axios";
 
 const ProjectDetailView = () => {
@@ -31,6 +38,8 @@ const ProjectDetailView = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [expandedTasks, setExpandedTasks] = useState({});
+  const [newSubTaskInputs, setNewSubTaskInputs] = useState({});
   console.log(projectId);
   let token = localStorage.getItem("token");
   useEffect(() => {
@@ -60,9 +69,14 @@ const ProjectDetailView = () => {
         if (projectMetadata) {
           // Flatten the aggregated tasks from backend
           // Structure: [{ employeeTasks: { tasks: { ... } } }, ...]
-          const normalizedTasks = tasksRes.data.map((item) => ({
-            _id: item.employeeTasks.tasks.task_id,
+          const normalizedTasks = tasksRes.data.map((item, index) => ({
+            _id: item.employeeTasks.tasks.task_id
+              ? `${item.employeeTasks.tasks.task_id}-${index}`
+              : `task-${index}-${Date.now()}`,
             ...item.employeeTasks.tasks,
+            ...item.employeeTasks.tasks,
+            originalTaskId: item.employeeTasks.tasks.task_id,
+            subTasks: item.employeeTasks.tasks.subTasks || [], // Initialize subTasks
           }));
 
           setProject({
@@ -121,17 +135,123 @@ const ProjectDetailView = () => {
 
   const handleToggleTodo = (todoId) => {
     // TODO: Implement API call to update todo status
-    setProject({
-      ...project,
-      todos: project.todos.map((todo) =>
-        todo._id === todoId
-          ? {
+    if (!todoId || !project || !project.todos) {
+      console.error("Invalid todoId or project state");
+      return;
+    }
+
+    setProject((prevProject) => {
+      if (!prevProject || !prevProject.todos) {
+        return prevProject;
+      }
+
+      return {
+        ...prevProject,
+        todos: prevProject.todos.map((todo) => {
+          // Use strict equality and ensure _id exists
+          if (todo._id && todo._id === todoId) {
+            return {
               ...todo,
               status: todo.status === "completed" ? "pending" : "completed",
-            }
-          : todo,
-      ),
+            };
+          }
+          return todo;
+        }),
+      };
     });
+  };
+
+  // Sub-task Handlers
+  const handleToggleExpand = (taskId) => {
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId],
+    }));
+  };
+
+  const handleSubTaskInputChange = (taskId, value) => {
+    setNewSubTaskInputs((prev) => ({
+      ...prev,
+      [taskId]: value,
+    }));
+  };
+
+  const handleAddSubTask = async (taskId) => {
+    const content = newSubTaskInputs[taskId];
+    if (!content || !content.trim()) return;
+
+    // Optimistic update
+    const newSubTask = {
+      _id: `sub-${Date.now()}`,
+      title: content,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    setProject((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) => {
+        if (todo._id === taskId) {
+          return {
+            ...todo,
+            subTasks: [...(todo.subTasks || []), newSubTask],
+          };
+        }
+        return todo;
+      }),
+    }));
+
+    setNewSubTaskInputs((prev) => ({ ...prev, [taskId]: "" }));
+
+    // Prepare API call (future backend integration)
+    try {
+      // await axios.post(`/api/tasks/${taskId}/subtasks`, { title: content });
+      console.log("API call to add subtask prepared:", { taskId, content });
+    } catch (error) {
+      console.error("Failed to add subtask:", error);
+      // Revert optimistic update if needed
+    }
+  };
+
+  const handleDeleteSubTask = (taskId, subTaskId) => {
+    setProject((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) => {
+        if (todo._id === taskId) {
+          return {
+            ...todo,
+            subTasks: todo.subTasks.filter((st) => st._id !== subTaskId),
+          };
+        }
+        return todo;
+      }),
+    }));
+    // Prepare API call
+    console.log("API call to delete subtask prepared:", { taskId, subTaskId });
+  };
+
+  const handleToggleSubTaskStatus = (taskId, subTaskId) => {
+    setProject((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) => {
+        if (todo._id === taskId) {
+          return {
+            ...todo,
+            subTasks: todo.subTasks.map((st) =>
+              st._id === subTaskId
+                ? {
+                    ...st,
+                    status: st.status === "completed" ? "pending" : "completed",
+                  }
+                : st,
+            ),
+          };
+        }
+        return todo;
+      }),
+    }));
+    // Prepare API call
+    console.log("API call to toggle subtask prepared:", { taskId, subTaskId });
   };
 
   if (loading) {
@@ -159,7 +279,23 @@ const ProjectDetailView = () => {
     : 0;
   const totalTodos = project.todos ? project.todos.length : 0;
   const calculatedProgress =
-    totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
+    project.todos && project.todos.length > 0
+      ? Math.round(
+          (project.todos.reduce((acc, todo) => {
+            if (todo.status === "completed") return acc + 1;
+            if (todo.subTasks && todo.subTasks.length > 0) {
+              return (
+                acc +
+                todo.subTasks.filter((st) => st.status === "completed").length /
+                  todo.subTasks.length
+              );
+            }
+            return acc;
+          }, 0) /
+            project.todos.length) *
+            100,
+        )
+      : 0;
   const daysRemaining = getDaysRemaining(project.deadline);
   const isUrgent = daysRemaining <= 7;
 
@@ -567,10 +703,35 @@ const ProjectDetailView = () => {
                                 )}
                               </Typography>
                             </Box>
+                            {/* Sub-task Summary */}
+                            {todo.subTasks && todo.subTasks.length > 0 && (
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                }}
+                              >
+                                <PlaylistAddCheckIcon
+                                  sx={{ fontSize: 14, color: "#00d4ff" }}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: "#00d4ff" }}
+                                >
+                                  {
+                                    todo.subTasks.filter(
+                                      (st) => st.status === "completed",
+                                    ).length
+                                  }
+                                  /{todo.subTasks.length} Sub-tasks
+                                </Typography>
+                              </Box>
+                            )}
                           </Box>
                         </Box>
 
-                        {/* Priority & Status */}
+                        {/* Priority & Status & Expand */}
                         <Box
                           sx={{ display: "flex", gap: 1, alignItems: "center" }}
                         >
@@ -585,17 +746,232 @@ const ProjectDetailView = () => {
                               border: `1px solid ${getPriorityColor(todo.priority)}30`,
                             }}
                           />
-                          <Box
+                          <IconButton
+                            onClick={() => handleToggleExpand(todo._id)}
                             sx={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              bgcolor: getStatusColor(todo.status),
-                              boxShadow: `0 0 8px ${getStatusColor(todo.status)}`,
+                              color: "#a0aec0",
+                              bgcolor: "rgba(255,255,255,0.05)",
+                              transition: "all 0.3s",
+                              transform: expandedTasks[todo._id]
+                                ? "rotate(180deg)"
+                                : "rotate(0deg)",
+                              "&:hover": {
+                                bgcolor: "rgba(255,255,255,0.1)",
+                                color: "#fff",
+                              },
                             }}
-                          />
+                            size="small"
+                          >
+                            <KeyboardArrowDownIcon />
+                          </IconButton>
                         </Box>
                       </Box>
+
+                      {/* Sub-tasks Section */}
+                      <Collapse
+                        in={expandedTasks[todo._id]}
+                        timeout="auto"
+                        unmountOnExit
+                      >
+                        <Box
+                          sx={{
+                            p: 2,
+                            mt: 1,
+                            mr: 2,
+                            ml: 6,
+                            borderRadius: "12px",
+                            bgcolor: "rgba(0, 0, 0, 0.2)",
+                            border: "1px solid rgba(255, 255, 255, 0.05)",
+                          }}
+                        >
+                          {/* Progress Bar */}
+                          {todo.subTasks && todo.subTasks.length > 0 && (
+                            <Box
+                              sx={{
+                                mb: 2,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              <LinearProgress
+                                variant="determinate"
+                                value={
+                                  (todo.subTasks.filter(
+                                    (st) => st.status === "completed",
+                                  ).length /
+                                    todo.subTasks.length) *
+                                  100
+                                }
+                                sx={{
+                                  flex: 1,
+                                  height: 6,
+                                  borderRadius: 3,
+                                  bgcolor: "rgba(255, 255, 255, 0.1)",
+                                  "& .MuiLinearProgress-bar": {
+                                    bgcolor: "#00d4ff",
+                                    borderRadius: 3,
+                                  },
+                                }}
+                              />
+                              <Typography
+                                variant="caption"
+                                sx={{ color: "#00d4ff", fontWeight: 600 }}
+                              >
+                                {Math.round(
+                                  (todo.subTasks.filter(
+                                    (st) => st.status === "completed",
+                                  ).length /
+                                    todo.subTasks.length) *
+                                    100,
+                                )}
+                                %
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {/* Add Sub-task Input */}
+                          <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                            <TextField
+                              fullWidth
+                              placeholder="Add a sub-task..."
+                              variant="outlined"
+                              size="small"
+                              value={newSubTaskInputs[todo._id] || ""}
+                              onChange={(e) =>
+                                handleSubTaskInputChange(
+                                  todo._id,
+                                  e.target.value,
+                                )
+                              }
+                              onKeyPress={(e) =>
+                                e.key === "Enter" && handleAddSubTask(todo._id)
+                              }
+                              sx={{
+                                "& .MuiOutlinedInput-root": {
+                                  color: "#fff",
+                                  fontSize: "0.9rem",
+                                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                                  "& fieldset": { borderColor: "transparent" },
+                                  "&:hover fieldset": {
+                                    borderColor: "rgba(255, 255, 255, 0.1)",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    borderColor: "#00d4ff",
+                                  },
+                                },
+                              }}
+                            />
+                            <IconButton
+                              onClick={() => handleAddSubTask(todo._id)}
+                              sx={{
+                                bgcolor: "#00d4ff",
+                                color: "#000",
+                                "&:hover": { bgcolor: "#00b7dd" },
+                                borderRadius: "8px",
+                                width: 40,
+                                height: 40,
+                              }}
+                            >
+                              <AddIcon />
+                            </IconButton>
+                          </Box>
+
+                          {/* Sub-tasks List */}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                            }}
+                          >
+                            {todo.subTasks && todo.subTasks.length > 0 ? (
+                              todo.subTasks.map((subTask) => (
+                                <Box
+                                  key={subTask._id}
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    p: 1,
+                                    borderRadius: "8px",
+                                    bgcolor: "rgba(255, 255, 255, 0.03)",
+                                    "&:hover": {
+                                      bgcolor: "rgba(255, 255, 255, 0.06)",
+                                    },
+                                    transition: "all 0.2s",
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    <Checkbox
+                                      size="small"
+                                      checked={subTask.status === "completed"}
+                                      onChange={() =>
+                                        handleToggleSubTaskStatus(
+                                          todo._id,
+                                          subTask._id,
+                                        )
+                                      }
+                                      sx={{
+                                        color: "#718096",
+                                        p: 0.5,
+                                        "&.Mui-checked": { color: "#00d4ff" },
+                                      }}
+                                    />
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color:
+                                          subTask.status === "completed"
+                                            ? "#718096"
+                                            : "#e2e8f0",
+                                        textDecoration:
+                                          subTask.status === "completed"
+                                            ? "line-through"
+                                            : "none",
+                                      }}
+                                    >
+                                      {subTask.title}
+                                    </Typography>
+                                  </Box>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDeleteSubTask(todo._id, subTask._id)
+                                    }
+                                    sx={{
+                                      color: "#a0aec0",
+                                      opacity: 0,
+                                      transition: "opacity 0.2s",
+                                      "&:hover": { color: "#ff5b5b" },
+                                      ".MuiBox-root:hover &": { opacity: 1 },
+                                    }}
+                                  >
+                                    <DeleteOutlineIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                              ))
+                            ) : (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "#718096",
+                                  textAlign: "center",
+                                  py: 2,
+                                }}
+                              >
+                                No sub-tasks yet.
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Collapse>
                     </motion.div>
                   ))}
               </AnimatePresence>
