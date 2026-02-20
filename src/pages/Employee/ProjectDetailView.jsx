@@ -60,7 +60,7 @@ const ProjectDetailView = () => {
             headers,
           }),
         ]);
-
+        console.log("fetvh takss", tasksRes);
         // Find the specific project this page is for
         const projectMetadata = projectsRes.data.find(
           (p) => p._id === projectId,
@@ -206,7 +206,8 @@ const ProjectDetailView = () => {
     // Prepare API call (future backend integration)
     try {
       // await axios.post(`/api/tasks/${taskId}/subtasks`, { title: content });
-      console.log("API call to add subtask prepared:", { taskId, content });
+      // console.log("API call to add subtask prepared:", { taskId, content });
+      console.log(taskId, content, projectId);
     } catch (error) {
       console.error("Failed to add subtask:", error);
       // Revert optimistic update if needed
